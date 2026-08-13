@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>上海租房信息汇总（在线协作版）</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#f0f2f5;color:#333;line-height:1.6;}
+header{background:linear-gradient(135deg,#1565c0,#0d47a1);color:#fff;padding:28px 20px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.15);position:relative;}
+header h1{font-size:1.9rem;margin-bottom:6px;font-weight:700;}
+header p{font-size:.95rem;opacity:.85;}
+.container{max-width:1300px;margin:0 auto;padding:20px;}
+.stats{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+.stat-card{flex:1;min-width:160px;background:#fff;border-radius:10px;padding:16px 20px;box-shadow:0 2px 6px rgba(0,0,0,.08);text-align:center;border-top:4px solid #1565c0;transition:transform .2s;}
+.stat-card:hover{transform:translateY(-3px);}
+.stat-card .num{font-size:1.8rem;font-weight:700;color:#0d47a1;}
+.stat-card .label{font-size:.85rem;color:#666;margin-top:4px;}
+.apply-guide{background:#fff;border-radius:10px;padding:20px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,.08);}
+.apply-guide h3{color:#0d47a1;margin-bottom:10px;font-size:1.1rem;}
+.apply-guide p{font-size:.9rem;color:#555;line-height:1.8;}
+.apply-guide a{color:#1565c0;text-decoration:none;}
+.apply-guide a:hover{text-decoration:underline;}
+.map-section{background:#fff;border-radius:10px;padding:20px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,.08);}
+.map-section h2{color:#0d47a1;margin-bottom:12px;font-size:1.3rem;}
+#map{height:550px;border-radius:8px;z-index:1;}
+.legend{position:absolute;bottom:20px;left:20px;background:rgba(255,255,255,.95);padding:12px 16px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.15);z-index:500;font-size:.82rem;max-width:200px;}
+.legend h4{margin-bottom:8px;font-size:.85rem;color:#0d47a1;}
+.legend-item{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
+.legend-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;border:2px solid #fff;box-shadow:0 0 2px rgba(0,0,0,.3);}
+.map-toolbar{position:absolute;top:12px;right:12px;z-index:500;display:flex;gap:6px;flex-wrap:wrap;max-width:320px;}
+.map-toolbar button{background:rgba(255,255,255,.95);border:1px solid #ccc;border-radius:6px;padding:6px 12px;font-size:.82rem;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,.1);transition:all .2s;}
+.map-toolbar button:hover{background:#1565c0;color:#fff;border-color:#1565c0;}
+.map-toolbar button.active{background:#1565c0;color:#fff;border-color:#1565c0;}
+.map-toolbar .divider{width:1px;background:#ccc;margin:2px 4px;}
+.recommend{background:#fff;border-radius:10px;padding:20px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,.08);}
+.recommend h2{color:#0d47a1;margin-bottom:12px;font-size:1.3rem;}
+.recommend table{width:100%;border-collapse:collapse;font-size:.85rem;}
+.recommend th{background:#e3f2fd;padding:8px;text-align:left;border-bottom:2px solid #1565c0;color:#0d47a1;white-space:nowrap;}
+.recommend td{padding:8px;border-bottom:1px solid #eee;}
+.recommend tr:hover td{background:#f5f9ff;}
+.table-section{background:#fff;border-radius:10px;padding:20px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,.08);}
+.table-section h2{color:#0d47a1;margin-bottom:12px;font-size:1.3rem;}
+.filter-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.filter-bar select,.filter-bar input{padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:.85rem;outline:none;}
+.filter-bar select:focus,.filter-bar input:focus{border-color:#1565c0;}
+.filter-bar button{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.85rem;transition:all .2s;}
+.applyFilters{background:#1565c0;color:#fff;}
+.applyFilters:hover{background:#0d47a1;}
+.resetFilters{background:#e0e0e0;color:#333;}
+.resetFilters:hover{background:#d0d0d0;}
+.add-btn{background:#43a047;color:#fff;}
+.add-btn:hover{background:#2e7d32;}
+.restore-btn{background:#ff9800;color:#fff;}
+.restore-btn:hover{background:#f57c00;}
+.data-mgmt{margin-left:auto;display:flex;gap:8px;}
+.data-mgmt button{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.82rem;transition:all .2s;}
+#exportData{background:#6a1b9a;color:#fff;}
+#exportData:hover{background:#4a148c;}
+#clearAllCustom{background:#e53935;color:#fff;}
+#clearAllCustom:hover{background:#c62828;}
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:.83rem;}
+thead th{background:#1565c0;color:#fff;padding:10px 8px;text-align:left;position:sticky;top:0;z-index:10;white-space:nowrap;}
+tbody td{padding:8px;border-bottom:1px solid #eee;vertical-align:top;}
+tbody tr:hover{background:#f5f9ff;}
+.platform-58{color:#e4393c;font-weight:600;}
+.platform-anjuke{color:#5d9cec;}
+.platform-ziroom{color:#7b1fa2;}
+.platform-wellcee{color:#00897b;}
+.platform-zhuge{color:#f57c00;}
+.platform-gov{color:#2e7d32;font-weight:600;}
+.feature-badge{display:inline-block;background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:10px;font-size:.75rem;margin:1px;}
+.popup-card{font-size:.85rem;line-height:1.6;}
+.popup-card .popup-title{font-weight:700;font-size:1rem;color:#0d47a1;margin-bottom:4px;}
+.popup-card .popup-price{color:#e4393c;font-weight:700;margin-bottom:4px;}
+.popup-card .popup-link{display:inline-block;margin-top:6px;color:#1565c0;text-decoration:none;}
+.popup-card .popup-link:hover{text-decoration:underline;}
+.notice{background:#fffbe6;border:1px solid #ffe58f;border-radius:10px;padding:16px 20px;margin-bottom:20px;font-size:.85rem;color:#614700;line-height:1.8;}
+.add-form-section{background:#fff;border-radius:10px;padding:20px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,.08);}
+.add-form-section h2{color:#0d47a1;cursor:pointer;font-size:1.3rem;user-select:none;display:flex;align-items:center;gap:8px;}
+.add-form-section h2:hover{color:#1565c0;}
+#formContent{display:none;margin-top:16px;}
+.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px;}
+.form-group{display:flex;flex-direction:column;gap:4px;}
+.form-group label{font-size:.82rem;color:#555;font-weight:600;}
+.form-group input,.form-group select{padding:8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem;outline:none;}
+.form-group input:focus,.form-group select:focus{border-color:#1565c0;}
+.form-group-wide{grid-column:1/-1;margin-bottom:16px;}
+.form-group-wide>label{font-size:.85rem;color:#555;font-weight:600;margin-bottom:6px;display:block;}
+.checkbox-group{display:flex;flex-wrap:wrap;gap:8px;padding:10px;border:1px solid #e0e0e0;border-radius:6px;max-height:120px;overflow-y:auto;}
+.checkbox-group label{display:inline-flex;align-items:center;gap:4px;font-size:.82rem;cursor:pointer;background:#f5f5f5;padding:3px 10px;border-radius:12px;transition:all .2s;}
+.checkbox-group label:hover{background:#e3f2fd;}
+.checkbox-group input[type="checkbox"]{margin:0;cursor:pointer;}
+.custom-badge{display:inline-flex;align-items:center;gap:4px;background:#e8f5e9;color:#2e7d32;padding:3px 8px;border-radius:12px;font-size:.78rem;margin:2px;}
+.custom-badge button{background:none;border:none;color:#e53935;cursor:pointer;font-size:.9rem;padding:0;line-height:1;}
+.pick-coords-btn{background:#ff9800;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:.82rem;transition:all .2s;}
+.pick-coords-btn:hover{background:#f57c00;}
+.pick-coords-btn.active{background:#e65100;box-shadow:0 0 0 3px rgba(255,152,0,.3);}
+.geocode-btn{background:#607d8b;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:.82rem;transition:all .2s;}
+.geocode-btn:hover{background:#455a64;}
+.form-coords{display:flex;gap:10px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap;}
+.form-coords .form-group{flex:1;min-width:140px;}
+.form-actions{display:flex;gap:12px;}
+.form-actions button{padding:10px 24px;border:none;border-radius:6px;cursor:pointer;font-size:.9rem;transition:all .2s;}
+#submitListing{background:#43a047;color:#fff;}
+#submitListing:hover{background:#2e7d32;}
+#clearForm{background:#e0e0e0;color:#333;}
+#clearForm:hover{background:#d0d0d0;}
+.del-btn{background:#e53935;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.78rem;transition:all .2s;}
+.del-btn:hover{background:#c62828;}
+.edit-btn{background:#1565c0;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.78rem;transition:all .2s;margin-right:4px;}
+.edit-btn:hover{background:#0d47a1;}
+.coord-override-badge{display:inline-block;background:#fff3e0;color:#e65100;padding:1px 6px;border-radius:8px;font-size:.7rem;margin-left:4px;border:1px solid #ffb74d;}
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:2000;justify-content:center;align-items:center;}
+.modal-overlay.show{display:flex;}
+.modal-box{background:#fff;border-radius:12px;padding:24px;width:420px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+.modal-box h3{font-size:16px;margin-bottom:16px;color:#1565c0;}
+.modal-box .form-row{margin-bottom:12px;}
+.modal-box .form-row label{display:block;font-size:13px;color:#666;margin-bottom:4px;}
+.modal-box .form-row input{width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;}
+.modal-box .form-row input:focus{border-color:#1565c0;outline:none;}
+.modal-box .btn-row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+.modal-box .btn-save{background:#1565c0;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px;}
+.modal-box .btn-save:hover{background:#0d47a1;}
+.modal-box .btn-reset{background:#757575;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px;}
+.modal-box .btn-reset:hover{background:#616161;}
+.modal-box .btn-cancel{background:#e0e0e0;color:#333;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px;}
+.modal-box .btn-cancel:hover{background:#bdbdbd;}
+.modal-box .mini-map-hint{font-size:12px;color:#999;margin-top:8px;}
+.modal-box .editing-name{font-weight:600;color:#333;margin-bottom:4px;display:block;}
+.restore-panel{margin-top:16px;padding:16px;border:1px solid #ffe0b2;border-radius:8px;background:#fff8e1;display:none;}
+.restore-panel h4{color:#e65100;margin-bottom:10px;}
+#restoreList{max-height:300px;overflow-y:auto;}
+.restore-item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid #ffe0b2;font-size:.85rem;}
+.restore-item button{background:#43a047;color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:.78rem;transition:all .2s;}
+.restore-item button:hover{background:#2e7d32;}
+#pickHint{display:none;background:#fff3e0;border:1px solid #ffb74d;border-radius:6px;padding:10px;margin-bottom:12px;font-size:.85rem;color:#e65100;}
+#pickHint.show{display:block;}
+footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
+.sync-status{position:absolute;top:20px;right:20px;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);padding:4px 12px;border-radius:20px;font-size:12px;color:#fff;}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#999;}
+.sync-dot.online{background:#4caf50;box-shadow:0 0 6px #4caf50;}
+.sync-dot.offline{background:#ff9800;}
+.sync-dot.unconfigured{background:#9e9e9e;}
+</style>
+</head>
+<body>
+<header>
+<h1>上海租房信息汇总（在线协作版）</h1>
+<p>虹桥区域 · 市域机场线 · 南汇支线 · 公租房/保租房 · 多人实时协作 · 数据云端同步&nbsp;</p>
+<div class="sync-status" id="syncStatus">
+  <span class="sync-dot" id="syncDot"></span>
+  <span id="syncText">初始化中...</span>
+</div>
+</header>
+<div class="container">
+<!-- Stats -->
+<div class="stats">
+<div class="stat-card"><div class="num" id="statTotal">29</div><div class="label">当前房源</div></div>
+<div class="stat-card"><div class="num" id="statHongqiao">10</div><div class="label">虹桥区域</div></div>
+<div class="stat-card"><div class="num" id="statAirport">5</div><div class="label">市域机场线</div></div>
+<div class="stat-card"><div class="num" id="statNanhui">5</div><div class="label">南汇支线</div></div>
+<div class="stat-card"><div class="num" id="statGov">9</div><div class="label">公租房/保租房</div></div>
+</div>
+
+<!-- Apply Guide -->
+<div class="apply-guide">
+<h3>公租房/保租房申请指南</h3>
+<p>上海公租房申请条件：持有《上海市居住证》或具有上海市户籍，在沪有稳定工作，人均住房建筑面积低于15平方米。保租房面向新市民、青年人，租金不高于同地段市场价的90%。</p>
+<p>闵行区公租房平台：<a href="https://zlzf.shmh.gov.cn" target="_blank">zlzf.shmh.gov.cn</a> &nbsp;|&nbsp; 上海住房租赁公共服务平台：<a href="https://zfzl.fgj.sh.gov.cn" target="_blank">zfzl.fgj.sh.gov.cn</a> &nbsp;|&nbsp; 临港新片区公租房：<a href="http://www.shlingang.com" target="_blank">shlingang.com</a></p>
+</div>
+
+<!-- Map Section -->
+<div class="map-section">
+<h2>房源地图分布</h2>
+<div style="position:relative;">
+<div id="map"></div>
+<div class="legend">
+<h4>图例</h4>
+<div class="legend-item"><span class="legend-dot" style="background:#1565c0;"></span>工作地点</div>
+<div class="legend-item"><span class="legend-dot" style="background:#e91e63;"></span>虹桥区域-公寓</div>
+<div class="legend-item"><span class="legend-dot" style="background:#ad1457;"></span>虹桥区域-住宅</div>
+<div class="legend-item"><span class="legend-dot" style="background:#7b1fa2;"></span>市域机场线</div>
+<div class="legend-item"><span class="legend-dot" style="background:#00897b;"></span>南汇支线</div>
+<div class="legend-item"><span class="legend-dot" style="background:#f57c00;"></span>公租房/保租房</div>
+<div class="legend-item"><span class="legend-dot" style="background:#546e7a;"></span>地铁/市域线站点</div>
+</div>
+<div class="map-toolbar" id="mapToolbar">
+<button id="toolAddMarker" onclick="toggleAddMarker()">添加标记</button>
+<button id="toolDrawRoute" onclick="toggleDrawRoute()">绘制路线</button>
+<span class="divider"></span>
+<button id="toolDelete" onclick="toggleDeleteMode()">删除模式</button>
+<button onclick="exitEditMode()">退出编辑</button>
+<button onclick="clearAllDrawings()">清空绘制</button>
+</div>
+</div>
+</div>
+
+<!-- Recommend -->
+<div class="recommend">
+<h2>TOP 7 推荐房源</h2>
+<table>
+<thead><tr><th>排名</th><th>房源</th><th>区域</th><th>月租</th><th>户型</th><th>亮点</th></tr></thead>
+<tbody id="recommendBody"></tbody>
+</table>
+</div>
+
+<!-- Table Section -->
+<div class="table-section">
+<h2>房源详情列表</h2>
+<div class="filter-bar">
+<select id="lineFilter"><option value="">全部区域</option><option value="虹桥区域">虹桥区域</option><option value="市域机场线">市域机场线</option><option value="南汇支线">南汇支线</option><option value="公租房/保租房">公租房/保租房</option></select>
+<select id="typeFilter"><option value="">全部类型</option><option value="公寓">公寓</option><option value="住宅">住宅</option><option value="公租房">公租房</option><option value="保租房">保租房</option></select>
+<input type="text" id="keywordFilter" placeholder="搜索房源名/地址/地铁..." style="flex:1;min-width:200px;">
+<button class="applyFilters" onclick="applyFilters()">筛选</button>
+<button class="resetFilters" onclick="resetFilters()">重置</button>
+<button class="add-btn" id="toggleForm" onclick="toggleForm()">+ 添加房源</button>
+<button class="restore-btn" onclick="toggleRestorePanel()">恢复已删除</button>
+<div class="data-mgmt">
+<button id="exportData" onclick="exportData()">导出数据</button>
+<button id="clearAllCustom" onclick="clearAllCustom()">清除自定义</button>
+</div>
+</div>
+<div class="table-wrap">
+<table>
+<thead>
+<tr><th>序号</th><th>区域</th><th>房源</th><th>月租</th><th>户型</th><th>面积</th><th>类型</th><th>地址</th><th>最近地铁</th><th>距地铁</th><th>联系/运营方</th><th>来源平台</th><th>配套设施</th><th>亮点特色</th><th>链接</th><th>操作</th></tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+<div class="restore-panel" id="restorePanel">
+<h4>已删除房源（可恢复）</h4>
+<div id="restoreList"><p style="color:#999;text-align:center;padding:10px;">暂无已删除房源</p></div>
+</div>
+</div>
+
+<!-- Notice -->
+<div class="notice">
+<p>①点击下方"添加房源"展开录入表单，填写信息后可通过"地址定位"自动获取坐标，或在地图上点击拾取坐标；②手动录入的房源按区域类型显示对应颜色，标记带★号，支持拖拽移动位置；③所有房源标记均可拖拽移动位置，也可点击"编辑"按钮修改坐标、地址、地铁站等信息，修改后的原始房源会显示"已修改"标签；④原始房源也可删除，删除后可在"恢复已删除"中恢复；⑤配置Firebase后，所有操作实时同步到云端，多人协作共享同一份数据，关闭页面后不会丢失。</p>
+</div>
+
+<!-- Add Form Section -->
+<div class="add-form-section">
+<h2 id="formToggle" onclick="toggleForm()">▶ 添加房源</h2>
+<div id="formContent">
+<div id="pickHint"></div>
+<div class="form-grid">
+<div class="form-group"><label>房源名称 *</label><input type="text" id="f_name" placeholder="如：虹桥天地公寓"></div>
+<div class="form-group"><label>月租（元）*</label><input type="number" id="f_price" placeholder="如：2500"></div>
+<div class="form-group"><label>户型</label><input type="text" id="f_layout" placeholder="如：1室1厅1卫"></div>
+<div class="form-group"><label>面积</label><input type="text" id="f_area_size" placeholder="如：39㎡"></div>
+<div class="form-group"><label>类型 *</label><select id="f_type"><option value="公寓">公寓</option><option value="住宅">住宅</option><option value="公租房">公租房</option><option value="保租房">保租房</option></select></div>
+<div class="form-group"><label>区域 *</label><select id="f_area"><option value="虹桥区域">虹桥区域</option><option value="市域机场线">市域机场线</option><option value="南汇支线">南汇支线</option><option value="公租房/保租房">公租房/保租房</option></select></div>
+<div class="form-group"><label>地址</label><input type="text" id="f_address" placeholder="如：闵行区申虹路929弄"></div>
+<div class="form-group"><label>最近地铁</label><input type="text" id="f_subway" placeholder="如：10号线虹桥火车站"></div>
+<div class="form-group"><label>距地铁</label><input type="text" id="f_subwayDist" placeholder="如：500米"></div>
+<div class="form-group"><label>联系人</label><input type="text" id="f_contact" placeholder="如：王先生"></div>
+<div class="form-group"><label>运营方/公司</label><input type="text" id="f_company" placeholder="如：XX公寓管理公司"></div>
+<div class="form-group"><label>付款方式</label><input type="text" id="f_payment" placeholder="如：押一付一"></div>
+<div class="form-group"><label>来源平台</label><select id="f_platform"><option value="58同城">58同城</option><option value="安居客">安居客</option><option value="自如">自如</option><option value="Wellcee">Wellcee</option><option value="诸葛找房">诸葛找房</option><option value="闵行公租房平台">闵行公租房平台</option><option value="浦东公租房">浦东公租房</option><option value="临港保租房">临港保租房</option><option value="上海住房租赁平台">上海住房租赁平台</option><option value="其他">其他</option></select></div>
+<div class="form-group"><label>链接URL</label><input type="text" id="f_url" placeholder="https://..."></div>
+</div>
+<div class="form-group-wide">
+<label>配套设施</label>
+<div class="checkbox-group" id="f_facilities_group">
+<label><input type="checkbox" value="床">床</label>
+<label><input type="checkbox" value="衣柜">衣柜</label>
+<label><input type="checkbox" value="沙发">沙发</label>
+<label><input type="checkbox" value="电视">电视</label>
+<label><input type="checkbox" value="冰箱">冰箱</label>
+<label><input type="checkbox" value="洗衣机">洗衣机</label>
+<label><input type="checkbox" value="空调">空调</label>
+<label><input type="checkbox" value="热水器">热水器</label>
+<label><input type="checkbox" value="宽带/Wifi">宽带/Wifi</label>
+<label><input type="checkbox" value="燃气灶">燃气灶</label>
+<label><input type="checkbox" value="油烟机">油烟机</label>
+<label><input type="checkbox" value="可做饭">可做饭</label>
+<label><input type="checkbox" value="阳台">阳台</label>
+<label><input type="checkbox" value="独立卫生间">独立卫生间</label>
+<label><input type="checkbox" value="智能门锁">智能门锁</label>
+<label><input type="checkbox" value="电梯">电梯</label>
+<label><input type="checkbox" value="停车场">停车场</label>
+<label><input type="checkbox" value="健身房">健身房</label>
+<label><input type="checkbox" value="24小时安保">24小时安保</label>
+<label><input type="checkbox" value="管家服务">管家服务</label>
+</div>
+<div style="margin-top:8px;display:flex;gap:8px;">
+<input type="text" id="f_facilities_custom" placeholder="自定义配套..." style="flex:1;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:.82rem;">
+<button onclick="addCustomFacility()" style="padding:6px 14px;background:#1565c0;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.82rem;">添加</button>
+</div>
+</div>
+<div class="form-group-wide">
+<label>亮点特色</label>
+<div class="checkbox-group" id="f_features_group">
+<label><input type="checkbox" value="近地铁">近地铁</label>
+<label><input type="checkbox" value="精装修">精装修</label>
+<label><input type="checkbox" value="拎包入住">拎包入住</label>
+<label><input type="checkbox" value="押一付一">押一付一</label>
+<label><input type="checkbox" value="可短租">可短租</label>
+<label><input type="checkbox" value="朝南">朝南</label>
+<label><input type="checkbox" value="独卫">独卫</label>
+<label><input type="checkbox" value="无中介费">无中介费</label>
+<label><input type="checkbox" value="民用水电">民用水电</label>
+<label><input type="checkbox" value="免费停车">免费停车</label>
+<label><input type="checkbox" value="loft户型">loft户型</label>
+<label><input type="checkbox" value="品牌公寓">品牌公寓</label>
+<label><input type="checkbox" value="政府背书">政府背书</label>
+<label><input type="checkbox" value="随时看房">随时看房</label>
+<label><input type="checkbox" value="首次出租">首次出租</label>
+<label><input type="checkbox" value="安静舒适">安静舒适</label>
+<label><input type="checkbox" value="采光好">采光好</label>
+<label><input type="checkbox" value="面积大">面积大</label>
+<label><input type="checkbox" value="性价比高">性价比高</label>
+<label><input type="checkbox" value="配套齐全">配套齐全</label>
+</div>
+<div style="margin-top:8px;display:flex;gap:8px;">
+<input type="text" id="f_features_custom" placeholder="自定义亮点..." style="flex:1;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:.82rem;">
+<button onclick="addCustomFeature()" style="padding:6px 14px;background:#1565c0;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.82rem;">添加</button>
+</div>
+</div>
+<div class="form-group-wide">
+<label>备注</label>
+<input type="text" id="f_notes" placeholder="如：距龙湖天街238米" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:.85rem;">
+</div>
+<div class="form-coords">
+<div class="form-group"><label>纬度 (lat)</label><input type="text" id="f_lat" placeholder="如：31.2113"></div>
+<div class="form-group"><label>经度 (lng)</label><input type="text" id="f_lng" placeholder="如：121.3213"></div>
+<button class="pick-coords-btn" id="pickBtn" onclick="togglePickCoords()">地图拾取坐标</button>
+<button class="geocode-btn" id="geoBtn" onclick="geocodeAddress()">地址定位</button>
+</div>
+<div class="form-actions">
+<button id="submitListing" onclick="submitListing()">提交房源</button>
+<button id="clearForm" onclick="clearForm()">清空表单</button>
+</div>
+</div>
+</div>
+
+</div>
+
+<!-- Setup Guide -->
+<div class="setup-guide" style="background:#fff;border-radius:12px;padding:20px;margin:20px 0;box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid #1565c0;">
+  <h3 style="font-size:16px;margin-bottom:12px;color:#1565c0;">在线协作配置指南</h3>
+  <p style="font-size:13px;color:#666;margin-bottom:8px;"><strong>第一步：</strong>访问 <a href="https://console.firebase.google.com/" target="_blank" style="color:#1565c0;">Firebase Console</a>，点击"创建项目"，按提示完成创建。</p>
+  <p style="font-size:13px;color:#666;margin-bottom:8px;"><strong>第二步：</strong>在项目左侧菜单选择"Realtime Database"→"创建数据库"→选择"测试模式"（30天内允许读写）。</p>
+  <p style="font-size:13px;color:#666;margin-bottom:8px;"><strong>第三步：</strong>点击项目设置（齿轮图标）→"常规"标签页→滚动到底部"您的应用"→点击"</></"添加应用"→选择Web(</>)。</p>
+  <p style="font-size:13px;color:#666;margin-bottom:8px;"><strong>第四步：</strong>注册应用后，复制 firebaseConfig 中的 apiKey、databaseURL、projectId、appId 四个值。</p>
+  <p style="font-size:13px;color:#666;margin-bottom:8px;"><strong>第五步：</strong>用文本编辑器打开本HTML文件，找到顶部的 <code style="background:#f5f5f5;padding:2px 6px;border-radius:4px;">var firebaseConfig</code>，将四个"YOUR_..."替换为你的值，保存。</p>
+  <p style="font-size:13px;color:#666;margin-bottom:8px;"><strong>第六步：</strong>刷新页面，右上角状态指示灯变绿即表示已连接。分享此文件给同事即可实时协作。</p>
+  <p style="font-size:13px;color:#e65100;margin-top:8px;"><strong>注意：</strong>测试模式30天后会锁定，需在Firebase控制台→Realtime Database→规则中设置访问权限。简单方案：{ "rules": { ".read": true, ".write": true } }</p>
+</div>
+
+<footer>
+<p>上海租房信息汇总 · 数据仅供参考，以实际房源为准 · 最后更新：2026年8月</p>
+</footer>
+
+<!-- ===== 编辑坐标模态框 ===== -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal-box">
+    <h3>修改房源信息</h3>
+    <span class="editing-name" id="editName"></span>
+    <div class="form-row">
+      <label>纬度 (lat)</label>
+      <input type="number" id="editLat" step="0.0001" placeholder="如：31.2000">
+    </div>
+    <div class="form-row">
+      <label>经度 (lng)</label>
+      <input type="number" id="editLng" step="0.0001" placeholder="如：121.3000">
+    </div>
+    <div class="form-row">
+      <label>地址（修改后可点击"地址定位"重新获取坐标）</label>
+      <input type="text" id="editAddress" placeholder="如：闵行区申虹路XXX弄">
+    </div>
+    <div class="form-row" style="display:flex;gap:8px;">
+      <button class="edit-btn" style="margin-right:0;" onclick="geocodeEditAddress()">地址定位</button>
+      <span class="mini-map-hint" style="line-height:32px;">点击定位后自动填入坐标</span>
+    </div>
+    <div class="form-row">
+      <label>最近地铁站</label>
+      <input type="text" id="editSubway" placeholder="如：2号线虹桥火车站">
+    </div>
+    <div class="form-row">
+      <label>距地铁距离</label>
+      <input type="text" id="editSubwayDist" placeholder="如：500米">
+    </div>
+    <div class="form-row">
+      <label>联系人/运营方</label>
+      <input type="text" id="editContact" placeholder="如：张先生 138xxxx">
+    </div>
+    <div class="form-row">
+      <label>月租（元/月）</label>
+      <input type="text" id="editPrice" placeholder="如：2000">
+    </div>
+    <div class="btn-row">
+      <button class="btn-reset" id="resetBtn" onclick="resetListingEdit()">重置原始值</button>
+      <button class="btn-cancel" onclick="closeEditModal()">取消</button>
+      <button class="btn-save" onclick="saveListingEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== Firebase 配置（请替换为你自己的项目配置）=====
+var firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+  projectId: "YOUR_PROJECT_ID",
+  appId: "YOUR_APP_ID"
+};
+// 如果未配置 Firebase，回退到 localStorage
+var firebaseEnabled = firebaseConfig.apiKey !== "YOUR_API_KEY";
+var db = null;
+if(firebaseEnabled){
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+}
+
+// ==================== Original Listings Data ====================
+var originalListings = [
+{id:1,area:"虹桥区域",name:"虹桥协信中心二期",price:2500,priceStr:"2500元/月",layout:"1室1厅1卫",area_size:"39㎡",type:"公寓",address:"闵行区申虹路929弄8号",subway:"10号线虹桥火车站",subwayDist:"1699米",contact:"王磊",company:"上海寓众公寓管理有限公司",platform:"58同城",platformClass:"platform-58",url:"https://sh.58.com/zufang/4605102097327112x.shtml",features:["独卫一居","押一付一","配套齐全","精装修","随时看房"],facilities:["床","衣柜","沙发","电视","冰箱","洗衣机","空调","热水器","宽带","燃气灶","油烟机","可做饭","独立阳台","智能门锁"],payment:"押一付一",lat:31.211296,lng:121.321299,notes:"华漕商圈，距协信星光天地216米"},
+{id:2,area:"虹桥区域",name:"上海虹桥英迪格酒店公寓",price:2300,priceStr:"2300元/月",layout:"1室1厅1卫",area_size:"40㎡",type:"公寓",address:"闵行区甬虹路188弄",subway:"10号线虹桥火车站",subwayDist:"925米",contact:"穆书峰",company:"上海寓众公寓管理有限公司",platform:"58同城",platformClass:"platform-58",url:"https://sh.58.com/zufang/4561763020874758x.shtml",features:["独卫一居","可短租","邻地铁","押一付一","精装修","有阳台"],facilities:["床","衣柜","沙发","电视","冰箱","洗衣机","空调","热水器","宽带","燃气灶","油烟机","可做饭","阳台","智能门锁"],payment:"押一付一",lat:31.196388,lng:121.320638,notes:"距龙湖虹桥天街步行可达"},
+{id:3,area:"虹桥区域",name:"虹桥万通中心",price:2200,priceStr:"2200元/月",layout:"1室1厅1卫",area_size:"39㎡",type:"公寓",address:"闵行区苏虹路333号",subway:"2/10/17号线虹桥火车站",subwayDist:"651米",contact:"王福超",company:"上海寓众公寓管理有限公司",platform:"安居客",platformClass:"platform-anjuke",url:"https://sh.zu.anjuke.com/fangyuan/4538757028506627",features:["物业直签","独立厨卫","三轨交汇","押一付一","精装修"],facilities:["冰箱","洗衣机","热水器","宽带","沙发","油烟机","燃气灶","可做饭","电视","空调","衣柜","床","智能门锁","阳台"],payment:"押一付一",lat:31.1985,lng:121.3145,notes:"三轨交汇，距龙湖天街A馆238米"},
+{id:4,area:"虹桥区域",name:"虹桥天地公寓（Wellcee直租）",price:2300,priceStr:"2300元/月（1900-3180可选）",layout:"1室1卫",area_size:"30㎡",type:"公寓",address:"闵行区虹桥天地南区",subway:"2/10/17号线虹桥火车站",subwayDist:"步行可达",contact:"郝先生",company:"公寓方直租",platform:"Wellcee",platformClass:"platform-wellcee",url:"https://www.wellcee.com/tw/rent-apartment/1752563536855157",features:["公寓方直租","24小时管家","干湿分离","可做饭","无中介费"],facilities:["洗衣机","空调","热水器","Wifi","电梯","厨房","停车场","健身房","保安"],payment:"押一付一",lat:31.1880,lng:121.3220,notes:"无中介费，价格1900-3180可选"},
+{id:5,area:"虹桥区域",name:"爱博一村",price:2500,priceStr:"2500元/月",layout:"1室1卫",area_size:"36㎡",type:"住宅",address:"闵行区宁虹路1101弄",subway:"2/10号线虹桥火车站",subwayDist:"1700米（公交2站）",contact:"刘政权",company:"上海飒宣置业有限公司",platform:"58同城",platformClass:"platform-58",url:"https://sh.58.com/hezu/87884867847004x.shtml",features:["可短租","独卫","押一付一","精装修","随时入住"],facilities:["床","衣柜","沙发","电视","冰箱","洗衣机","空调","热水器","宽带","燃气灶","油烟机","可做饭","阳台","智能门锁"],payment:"押一付一",lat:31.212982,lng:121.317135,notes:"近虹桥天地、龙湖天街"},
+{id:6,area:"虹桥区域",name:"季乐路自如寓（loft）",price:2199,priceStr:"2199-2519元/月",layout:"1室1厅1卫（loft）",area_size:"18㎡",type:"公寓",address:"闵行区北青公路1068号",subway:"2/17号线（驾车可达）",subwayDist:"约3km",contact:"自如管家",company:"自如",platform:"自如",platformClass:"platform-ziroom",url:"https://www.ziroomapartment.com/houseType/getDetail/2c923c86902a57fc0190aac3e2b95580.html",features:["品牌公寓","可短租1-11月","随时入住","200+房间"],facilities:["椅子","书桌","床","热水器","洗衣机","冰箱"],payment:"月付",lat:31.2200,lng:121.2900,notes:"loft户型，起步价2199元"},
+{id:7,area:"虹桥区域",name:"闵行体育公园自如寓Lite",price:2399,priceStr:"2399-2899元/月",layout:"1室1厅1卫（loft）",area_size:"19-30㎡",type:"公寓",address:"闵行区水清路1390号",subway:"需公交换乘",subwayDist:"约1.5km",contact:"自如管家",company:"自如",platform:"自如",platformClass:"platform-ziroom",url:"https://www.ziroomapartment.com/houseType/getDetail/2c92a9847f0b9160017f0ba71ea80063.html",features:["品牌公寓","loft户型","有电梯"],facilities:["书桌","椅子","床","热水器","洗衣机","冰箱"],payment:"月付",lat:31.1700,lng:121.3900,notes:"近闵行体育公园"},
+{id:8,area:"虹桥区域",name:"七宝悦舍自如寓Lite",price:2500,priceStr:"约2500元/月",layout:"1室1厅1卫",area_size:"约20-30㎡",type:"公寓",address:"闵行区顺恒广场（近七宝）",subway:"9号线七宝",subwayDist:"公交直达",contact:"自如管家",company:"自如",platform:"自如",platformClass:"platform-ziroom",url:"https://www.ziroomapartment.com/houseType/getDetail/2c92bda47e6ae243017e6c013e4202ed.html",features:["品牌公寓","独立卫浴","24小时安保","管家服务"],facilities:["书桌","椅子","衣柜","床垫","床头柜","床"],payment:"月付",lat:31.1550,lng:121.3510,notes:"近七宝老街"},
+{id:9,area:"虹桥区域",name:"爱博六村",price:2500,priceStr:"2500元/月",layout:"1室1厅",area_size:"30㎡",type:"住宅",address:"闵行区华漕 爱博六村",subway:"2/10号线虹桥火车站",subwayDist:"约1.7km",contact:"经纪人",company:"诸葛找房",platform:"诸葛找房",platformClass:"platform-zhuge",url:"http://m.zhuge.com/sh/zufang/143352/11276768.html",features:["拎包入住","首次出租","安静舒适","有电梯"],facilities:["精装修","家电齐全"],payment:"押一付三",lat:31.2160,lng:121.3190,notes:"近虹桥商务区"},
+{id:10,area:"虹桥区域",name:"北翟路3318弄",price:2160,priceStr:"2160-2200元/月",layout:"1室1厅",area_size:"22㎡",type:"公寓",address:"闵行区华漕 北翟路3318弄85号楼",subway:"2号线淞虹路",subwayDist:"约2km（免费班车）",contact:"经纪人",company:"安居客",platform:"安居客",platformClass:"platform-anjuke",url:"https://m.anjuke.com/sh/rmss/chuzu-223-huacaosh/",features:["免费班车","直达凌空","朝南","性价比高"],facilities:["精装修","家电齐全","免费宽带"],payment:"押一付一",lat:31.2300,lng:121.3100,notes:"有免费班车"},
+{id:11,area:"市域机场线",name:"中春路7628号商业楼",price:2500,priceStr:"2500元/月",layout:"1室1厅",area_size:"约30㎡",type:"公寓",address:"闵行区七宝 中春路7628号",subway:"9号线中春路/12号线七莘路",subwayDist:"727米",contact:"经纪人",company:"安居客",platform:"安居客",platformClass:"platform-anjuke",url:"http://m.anjuke.com/sh/gongyu-zufang/minhang-q-qibao/",features:["近地铁","精装修","双地铁"],facilities:["精装修","家电齐全"],payment:"押一付一",lat:31.1500,lng:121.3500,notes:"9号线+12号线双地铁"},
+{id:12,area:"市域机场线",name:"景洪路地铁口loft公寓",price:2000,priceStr:"2000元/月",layout:"1室1厅",area_size:"30㎡",type:"公寓",address:"闵行区春申 景洪路附近",subway:"15号线/机场联络线景洪路站",subwayDist:"地铁口",contact:"经纪人",company:"58同城",platform:"58同城",platformClass:"platform-58",url:"https://sh.zf.58.com/ssc-1/chunshensh/",features:["独卫一居","可短租","地铁口","押一付一","loft"],facilities:["精装修","家电齐全"],payment:"押一付一",lat:31.0950,lng:121.3850,notes:"景洪路地铁口"},
+{id:13,area:"市域机场线",name:"光华绿苑（景洪路）",price:1950,priceStr:"1950元/月",layout:"1室0厅1卫",area_size:"20㎡",type:"公寓",address:"徐汇区华泾 光华绿苑",subway:"15号线景洪路",subwayDist:"899米",contact:"经纪人",company:"58同城",platform:"58同城",platformClass:"platform-58",url:"https://sh.58.com/zfjh/chuzu-3-s10400/",features:["邻地铁","精装修","性价比高"],facilities:["精装修","家电齐全"],payment:"押一付一",lat:31.0900,lng:121.3750,notes:"华泾板块"},
+{id:14,area:"市域机场线",name:"老沪闵路1492号",price:1700,priceStr:"1700元/月",layout:"1室",area_size:"45㎡",type:"住宅",address:"闵行区春申 老沪闵路1492号",subway:"机场联络线景洪路站",subwayDist:"696米",contact:"经纪人",company:"58同城",platform:"58同城",platformClass:"platform-58",url:"https://sh.58.com/zfjh/chuzu-3-s10400/",features:["近市域机场线","面积大","价格最低"],facilities:["精装修"],payment:"押一付一",lat:31.0850,lng:121.3800,notes:"距景洪路站696米"},
+{id:15,area:"市域机场线",name:"秀浦路3097号楼",price:2500,priceStr:"2500元/月",layout:"1室",area_size:"40㎡",type:"公寓",address:"浦东新区周浦 秀浦路3097号",subway:"11号线康新公路",subwayDist:"119米",contact:"曹苏阳",company:"58同城",platform:"58同城",platformClass:"platform-58",url:"https://sh.58.com/zfjh/chuzu-3-s2912/",features:["免水电费","带阳台","大型社区","近地铁"],facilities:["精装修","家电齐全"],payment:"押一付一",lat:31.1190,lng:121.5780,notes:"近迪士尼，11号线119米"},
+{id:16,area:"南汇支线",name:"惠诚悦华里二期（惠南）",price:2000,priceStr:"2000元/月",layout:"1室1厅",area_size:"60㎡",type:"住宅",address:"浦东新区惠南 勤奋路569弄",subway:"16号线惠南站",subwayDist:"1868米",contact:"经纪人",company:"安居客",platform:"安居客",platformClass:"platform-anjuke",url:"https://m.anjuke.com/sh/rmss/zhengzu-172-l58/",features:["民用水电","免费停车","面积大","近大学城"],facilities:["精装修","家电齐全"],payment:"押一付一",lat:31.0350,lng:121.7800,notes:"勤奋路569弄，距惠南站1928米"},
+{id:17,area:"南汇支线",name:"海曲雅苑（惠南）",price:2200,priceStr:"2200元/月",layout:"1室1厅",area_size:"58㎡",type:"住宅",address:"浦东新区惠南 拱北路398弄",subway:"16号线惠南站",subwayDist:"约1.5km",contact:"经纪人",company:"安居客",platform:"安居客",platformClass:"platform-anjuke",url:"https://m.anjuke.com/sh/rmss/zhengzu-1-s3008/",features:["精装全配","民用水电","面积大"],facilities:["精装修","家电齐全"],payment:"押一付一",lat:31.0320,lng:121.7700,notes:"惠南板块"},
+{id:18,area:"南汇支线",name:"和露佳园（宣桥）",price:2300,priceStr:"2300元/月",layout:"1室",area_size:"62㎡",type:"住宅",address:"浦东新区宣桥 和露佳园",subway:"16号线野生动物园站",subwayDist:"1916米",contact:"王静文",company:"58同城",platform:"58同城",platformClass:"platform-58",url:"https://sh.58.com/zfjh/chuzu-299-shxuanqiaozhen/",features:["民用水电","面积大","近动物园"],facilities:["精装修","家电齐全"],payment:"押一付一",lat:31.0100,lng:121.7500,notes:"近东大公路站规划位置"},
+{id:19,area:"南汇支线",name:"东方冠郡公寓（宣桥）",price:2000,priceStr:"2000元/月",layout:"1室",area_size:"42.81㎡",type:"公寓",address:"浦东新区宣桥 东方冠郡(西区商住楼)",subway:"16号线野生动物园站",subwayDist:"约1.5km",contact:"徐能",company:"58同城",platform:"58同城",platformClass:"platform-58",url:"https://sh.58.com/zfjh/chuzu-102-shxuanqiaozhen/",features:["精装修","拎包入住","商住楼"],facilities:["精装修","家电齐全"],payment:"押一付一",lat:31.0150,lng:121.7450,notes:"宣桥板块"},
+{id:20,area:"南汇支线",name:"滴水湖馨苑（临港）",price:2000,priceStr:"2000元/月",layout:"1室",area_size:"43.7㎡",type:"公寓",address:"浦东新区临港新城 滴水湖馨苑",subway:"16号线滴水湖",subwayDist:"约1.5km",contact:"李刚",company:"58同城",platform:"58同城",platformClass:"platform-58",url:"https://sh.58.com/zfjh/chuzu-8-lingangxinc/",features:["近滴水湖","采光好","性价比高"],facilities:["精装修","家电齐全"],payment:"押一付一",lat:30.8500,lng:121.9300,notes:"临港新城"},
+{id:21,area:"公租房/保租房",name:"斐丽名邸（闵行区公租房）",price:1476,priceStr:"1476-2399元/月（46.14元/㎡）",layout:"1室1厅",area_size:"32-52㎡",type:"公租房",address:"闵行区华漕镇季乐路33弄",subway:"13号线西延伸(规划)芳乐路站",subwayDist:"约0.5km(规划中)",contact:"闵行区公租房中心",company:"闵行区公共租赁房投资运营有限公司",platform:"闵行公租房平台",platformClass:"platform-gov",url:"https://zlzf.shmh.gov.cn/yiwangtongban/html/projectDetail.html?id=43e3bd31-d257-47db-ba39-a0c8cc9f4e85",features:["政府背书","无中介费","民水民电","拎包入住","配套齐全","智能门锁","82套一居室","可办居住证"],facilities:["餐桌","餐椅","衣橱","床","电视","冰箱","洗衣机","智能门锁"],payment:"押一付三（季度付）",lat:31.2250,lng:121.2850,notes:"华漕前湾板块，305套公租房，一居室82套"},
+{id:22,area:"公租房/保租房",name:"禧瑞铭庭（闵行区公租房）",price:2500,priceStr:"2500-2750元/月（51.04元/㎡）",layout:"1室1厅",area_size:"52㎡",type:"公租房",address:"闵行区华漕镇徐亭路36弄",subway:"17号线蟠龙路站",subwayDist:"约3.4km",contact:"闵行区公租房中心",company:"闵行区公共租赁房投资运营有限公司",platform:"闵行公租房平台",platformClass:"platform-gov",url:"https://zlzf.shmh.gov.cn/yiwangtongban/html/projectDetail.html?id=6f8c4ac8-72c1-4db0-ba8d-a78d9ed65c5c",features:["政府背书","无中介费","民水民电","拎包入住","全部朝南","45套一居室","智能门锁"],facilities:["餐桌","餐椅","衣橱","床","电视","冰箱","洗衣机","智能门锁"],payment:"押一付三（季度付）",lat:31.2200,lng:121.2650,notes:"华漕前湾，全部朝南一居室"},
+{id:23,area:"公租房/保租房",name:"民乐城秀园北园（浦东公租房）",price:1650,priceStr:"1650-1800元/月",layout:"1室1厅",area_size:"52㎡",type:"公租房",address:"浦东新区惠南 通济路1279弄",subway:"16号线惠南站",subwayDist:"约1.5km",contact:"浦东新区公租房中心",company:"浦东新区公租房运营机构",platform:"浦东公租房",platformClass:"platform-gov",url:"http://m.sh.bendibao.com/zffw/290248.html",features:["政府背书","无中介费","民水民电","拎包入住","53套一居室","近南汇支线下盐路站"],facilities:["精装修","家电齐全"],payment:"押一付三",lat:31.0400,lng:121.7600,notes:"惠南板块，53套一居室"},
+{id:24,area:"公租房/保租房",name:"科宸云筑（临港保租房）",price:1484,priceStr:"1484-1586元/月",layout:"1室2厅",area_size:"一室二厅",type:"保租房",address:"浦东新区临港新片区 海基一路99弄",subway:"16号线滴水湖/临港大道",subwayDist:"约2km",contact:"临港公租房运营平台",company:"临港新片区公租房运营机构",platform:"临港保租房",platformClass:"platform-gov",url:"http://news.qq.com/rain/a/20260123A03K8G00",features:["保租房","政府背书","无中介费","燃气做饭","拎包入住","近临港开放区站"],facilities:["精装修","家电齐全","燃气灶"],payment:"押一付三",lat:30.8600,lng:121.9200,notes:"临港新片区，2026年7月转为保租房"},
+{id:25,area:"公租房/保租房",name:"科璟雅居（临港保租房）",price:1423,priceStr:"1423元/月起",layout:"1室2厅",area_size:"一室二厅",type:"保租房",address:"浦东新区临港新片区 海洋一路666弄",subway:"16号线滴水湖/临港大道",subwayDist:"约2km",contact:"临港公租房运营平台",company:"临港新片区公租房运营机构",platform:"临港保租房",platformClass:"platform-gov",url:"http://news.qq.com/rain/a/20260123A03K8G00",features:["保租房","政府背书","无中介费","燃气做饭","拎包入住","最低价","近临港开放区站"],facilities:["精装修","家电齐全","燃气灶"],payment:"押一付三",lat:30.8650,lng:121.9150,notes:"临港新片区，1423元/月起"},
+{id:26,area:"公租房/保租房",name:"云涛公寓（官方平台长租公寓）",price:1800,priceStr:"1800元/月",layout:"1室",area_size:"20㎡",type:"公寓",address:"闵行区万泰路109号",subway:"5号线/23号线（需公交换乘）",subwayDist:"约2km",contact:"上海方鼎公寓管理有限公司",company:"上海方鼎公寓管理有限公司",platform:"上海住房租赁平台",platformClass:"platform-gov",url:"https://zfzl.fgj.sh.gov.cn/information/project.html?index=2",features:["官方核验","房源保真","精装修"],facilities:["精装修","家电齐全"],payment:"押一付一",lat:31.0500,lng:121.4000,notes:"闵行吴泾板块，官方平台核验"},
+{id:27,area:"公租房/保租房",name:"正峰公寓（官方平台长租公寓）",price:2300,priceStr:"2300元/月",layout:"1室",area_size:"38㎡",type:"公寓",address:"闵行区颛桥 新源路1356弄1-7号",subway:"18号线航头站",subwayDist:"约2km",contact:"上海正珏科技发展有限公司",company:"上海正珏科技发展有限公司",platform:"上海住房租赁平台",platformClass:"platform-gov",url:"https://zfzl.fgj.sh.gov.cn/information/project.html?index=3",features:["官方核验","房源保真","精装修","面积大"],facilities:["精装修","家电齐全"],payment:"押一付一",lat:31.0600,lng:121.4000,notes:"浦东航头板块，官方平台核验"},
+{id:28,area:"公租房/保租房",name:"新光华长租公寓（官方平台）",price:1800,priceStr:"1800元/月",layout:"1室",area_size:"30㎡",type:"公寓",address:"闵行区元江路3699号15幢",subway:"5号线（需公交换乘）",subwayDist:"约2km",contact:"上海新光华塑胶有限公司",company:"上海新光华塑胶有限公司",platform:"上海住房租赁平台",platformClass:"platform-gov",url:"https://zfzl.fgj.sh.gov.cn/information/project.html?index=16",features:["官方核验","房源保真","精装修"],facilities:["精装修","家电齐全"],payment:"押一付一",lat:31.0300,lng:121.4200,notes:"闵行颛桥板块，官方平台核验"},
+{id:29,area:"公租房/保租房",name:"禧悦华庭（官方平台长租公寓）",price:2500,priceStr:"2500元/月",layout:"1室",area_size:"42㎡",type:"公寓",address:"青浦区盈浦街道 淀惠路398弄",subway:"17号线（需公交换乘）",subwayDist:"约3km",contact:"上海首青置业有限公司",company:"上海首青置业有限公司",platform:"上海住房租赁平台",platformClass:"platform-gov",url:"https://zfzl.fgj.sh.gov.cn/information/project.html?index=20",features:["官方核验","房源保真","精装修","面积大"],facilities:["精装修","家电齐全"],payment:"押一付一",lat:31.1500,lng:121.1500,notes:"青浦盈浦板块，17号线可达虹桥"}
+];
+
+// ==================== Firebase-backed Data Management ====================
+function updateSyncTimestamp(){
+  if(firebaseEnabled){
+    db.ref('lastModified').set({time: Date.now(), action: 'edit'});
+  }
+}
+
+function loadCustomListings(){
+  try{var d=localStorage.getItem('sh_rental_custom');return d?JSON.parse(d):[];}catch(e){return[];}
+}
+function saveCustomListings(){
+  if(firebaseEnabled){
+    db.ref('customListings').set(customListings);
+    updateSyncTimestamp();
+  } else {
+    try{localStorage.setItem('sh_rental_custom',JSON.stringify(customListings));}catch(e){}
+  }
+}
+function loadDeletedIds(){
+  try{var d=localStorage.getItem('sh_rental_deleted');return d?JSON.parse(d):[];}catch(e){return[];}
+}
+function saveDeletedIds(){
+  if(firebaseEnabled){
+    db.ref('deletedIds').set(deletedIds);
+    updateSyncTimestamp();
+  } else {
+    try{localStorage.setItem('sh_rental_deleted',JSON.stringify(deletedIds));}catch(e){}
+  }
+}
+
+// Initial load - if Firebase not enabled, use localStorage
+var customListings = [];
+var deletedIds = [];
+if(!firebaseEnabled){
+  customListings = loadCustomListings();
+  deletedIds = loadDeletedIds();
+}
+var nextCustomId = (function(){
+  var max=1000;
+  customListings.forEach(function(l){if(l.id>max)max=l.id;});
+  return max+1;
+})();
+
+// ==================== Listing Overrides (coordinate/field edits) ====================
+function loadOverrides(){
+  try{var d=localStorage.getItem('sh_rental_overrides');return d?JSON.parse(d):{};}catch(e){return{};}
+}
+function saveOverrides(){
+  if(firebaseEnabled){
+    db.ref('overrides').set(listingOverrides);
+    updateSyncTimestamp();
+  } else {
+    try{localStorage.setItem('sh_rental_overrides',JSON.stringify(listingOverrides));}catch(e){}
+  }
+}
+var listingOverrides = {};
+if(!firebaseEnabled){
+  listingOverrides = loadOverrides();
+}
+var editingId = null;
+
+function getOriginalListing(id){
+  for(var i=0;i<originalListings.length;i++){if(originalListings[i].id===id)return originalListings[i];}
+  for(var i=0;i<customListings.length;i++){if(customListings[i].id===id)return customListings[i];}
+  return null;
+}
+
+function getAllListings(){
+  var all=[];
+  originalListings.forEach(function(l){
+    if(deletedIds.indexOf(l.id)!==-1)return;
+    var copy=JSON.parse(JSON.stringify(l));
+    if(listingOverrides[l.id]){
+      var ov=listingOverrides[l.id];
+      if(ov.lat)copy.lat=ov.lat;
+      if(ov.lng)copy.lng=ov.lng;
+      if(ov.address)copy.address=ov.address;
+      if(ov.subway)copy.subway=ov.subway;
+      if(ov.subwayDist)copy.subwayDist=ov.subwayDist;
+      if(ov.contact)copy.contact=ov.contact;
+      if(ov.price)copy.price=ov.price;
+      if(ov.priceStr)copy.priceStr=ov.priceStr;
+      copy._overridden=true;
+    }
+    all.push(copy);
+  });
+  customListings.forEach(function(l){
+    if(deletedIds.indexOf(l.id)!==-1)return;
+    all.push(JSON.parse(JSON.stringify(l)));
+  });
+  return all;
+}
+
+// ==================== Station Data ====================
+var airportLineStations = [
+  {name:"虹桥火车站",lat:31.1942,lng:121.3194},
+  {name:"景洪路",lat:31.0920,lng:121.3830},
+  {name:"华泾",lat:31.0870,lng:121.3700},
+  {name:"三林南",lat:31.1400,lng:121.5100},
+  {name:"康桥东",lat:31.0800,lng:121.5600},
+  {name:"上海东站",lat:31.0300,lng:121.6200},
+  {name:"浦东机场",lat:31.1450,lng:121.8050}
+];
+
+var nanhuiLineStations = [
+  {name:"下盐路",lat:31.0200,lng:121.7300},
+  {name:"惠南东",lat:31.0450,lng:121.7700},
+  {name:"宣桥",lat:31.0100,lng:121.7500},
+  {name:"野生动物园",lat:31.0050,lng:121.7400},
+  {name:"临港大道",lat:30.8700,lng:121.9100},
+  {name:"滴水湖",lat:30.8500,lng:121.9300}
+];
+
+var workplace = {name:"申昆路2699号",lat:31.2250,lng:121.3300};
+
+// ==================== Map Initialization ====================
+var map = L.map('map',{center:[31.10,121.45],zoom:10,zoomControl:true});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+  attribution:'&copy; CARTO &copy; OpenStreetMap',
+  subdomains:'abcd',
+  maxZoom:19
+}).addTo(map);
+
+var markerLayer = L.layerGroup().addTo(map);
+var stationLayer = L.layerGroup().addTo(map);
+var drawnItems = L.layerGroup().addTo(map);
+var drawRouteLayer = L.layerGroup().addTo(map);
+var mapMarkers = [];
+
+// ==================== Marker Functions ====================
+function getMarkerColor(listing){
+  if(listing.area==='公租房/保租房')return '#f57c00';
+  if(listing.area==='南汇支线')return '#00897b';
+  if(listing.area==='市域机场线')return '#7b1fa2';
+  if(listing.area==='虹桥区域'){
+    if(listing.type==='住宅')return '#ad1457';
+    return '#e91e63';
+  }
+  return '#546e7a';
+}
+
+function getMarkerIcon(listing){
+  var color=getMarkerColor(listing);
+  var isCustom=listing.id>1000;
+  var star=isCustom?'★':'';
+  var html='<div style="background:'+color+';width:28px;height:28px;border-radius:50% 50% 50% 0;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.3);transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;">'+
+    '<span style="transform:rotate(45deg);color:#fff;font-size:11px;font-weight:bold;">'+star+'</span></div>';
+  return L.divIcon({html:html,className:'',iconSize:[28,28],iconAnchor:[14,28],popupAnchor:[0,-28]});
+}
+
+function renderMapMarkers(data){
+  markerLayer.clearLayers();
+  mapMarkers=[];
+  var list=data||getAllListings();
+  list.forEach(function(l){
+    if(!l.lat||!l.lng)return;
+    var marker=L.marker([l.lat,l.lng],{icon:getMarkerIcon(l),draggable:true});
+    var popupHtml='<div class="popup-card">'+
+      '<div class="popup-title">'+l.name+(l._overridden?'<span class="coord-override-badge">已修改</span>':'')+'</div>'+
+      '<div class="popup-price">'+l.priceStr+'</div>'+
+      '<div>区域：'+l.area+' | 类型：'+l.type+'</div>'+
+      '<div>户型：'+l.layout+' | 面积：'+l.area_size+'</div>'+
+      '<div>地址：'+l.address+'</div>'+
+      '<div>地铁：'+l.subway+'（'+l.subwayDist+'）</div>'+
+      '<div>联系：'+l.contact+'（'+l.company+'）</div>'+
+      '<div>来源：'+l.platform+' | '+l.payment+'</div>'+
+      '<div style="font-size:.7rem;color:#999;margin-top:4px;">坐标：'+l.lat.toFixed(4)+', '+l.lng.toFixed(4)+'</div>'+
+      (l.features&&l.features.length?'<div style="margin-top:4px;">'+l.features.map(function(f){return '<span class="feature-badge">'+f+'</span>';}).join('')+'</div>':'')+
+      (l.url?'<a class="popup-link" href="'+l.url+'" target="_blank">查看详情 &raquo;</a>':'')+
+      '<div style="margin-top:6px;"><button class="edit-btn" style="margin-right:0;" onclick="openEditModal('+l.id+')">编辑信息</button></div>'+
+      '</div>';
+    marker.bindPopup(popupHtml,{maxWidth:320});
+    marker.on('dragend',function(e){
+      var ll=e.target.getLatLng();
+      if(l.id<=1000){
+        // Original listing - save to overrides
+        if(!listingOverrides[l.id])listingOverrides[l.id]={};
+        listingOverrides[l.id].lat=ll.lat;
+        listingOverrides[l.id].lng=ll.lng;
+        saveOverrides();
+      }else{
+        // Custom listing - update directly
+        l.lat=ll.lat;l.lng=ll.lng;
+        saveCustomListings();
+      }
+    });
+    markerLayer.addLayer(marker);
+    mapMarkers.push({id:l.id,marker:marker});
+  });
+  // Workplace marker
+  var wpIcon=L.divIcon({html:'<div style="background:#1565c0;width:32px;height:32px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:bold;">★</div>',className:'',iconSize:[32,32],iconAnchor:[16,16]});
+  L.marker([workplace.lat,workplace.lng],{icon:wpIcon}).bindPopup('<div class="popup-card"><div class="popup-title">'+workplace.name+'</div></div>').addTo(markerLayer);
+  // Station markers
+  stationLayer.clearLayers();
+  airportLineStations.forEach(function(s){
+    var icon=L.divIcon({html:'<div style="background:#546e7a;width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3);"></div>',className:'',iconSize:[12,12],iconAnchor:[6,6]});
+    L.marker([s.lat,s.lng],{icon:icon}).bindPopup('<div class="popup-card"><div class="popup-title">'+s.name+'</div>市域机场线站点</div>').addTo(stationLayer);
+  });
+  nanhuiLineStations.forEach(function(s){
+    var icon=L.divIcon({html:'<div style="background:#546e7a;width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3);"></div>',className:'',iconSize:[12,12],iconAnchor:[6,6]});
+    L.marker([s.lat,s.lng],{icon:icon}).bindPopup('<div class="popup-card"><div class="popup-title">'+s.name+'</div>南汇支线站点</div>').addTo(stationLayer);
+  });
+}
+
+// ==================== Render Table ====================
+function renderTable(data){
+  var tbody=document.getElementById('tableBody');
+  var list=data||getAllListings();
+  tbody.innerHTML='';
+  list.forEach(function(l,idx){
+    var tr=document.createElement('tr');
+    var platformClass=l.platformClass||'';
+    var featuresHtml=(l.features||[]).map(function(f){return '<span class="feature-badge">'+f+'</span>';}).join('');
+    var facilitiesHtml=(l.facilities||[]).join('、');
+    var linkHtml=l.url?'<a href="'+l.url+'" target="_blank" class="'+platformClass+'">查看</a>':'-';
+    tr.innerHTML=
+      '<td>'+(idx+1)+'</td>'+
+      '<td>'+l.area+'</td>'+
+      '<td>'+l.name+(l.id>1000?' <span class="feature-badge" style="background:#c8e6c9;color:#2e7d32;">自定义</span>':'')+'</td>'+
+      '<td style="color:#e4393c;font-weight:600;">'+l.priceStr+'</td>'+
+      '<td>'+l.layout+'</td>'+
+      '<td>'+l.area_size+'</td>'+
+      '<td>'+l.type+'</td>'+
+      '<td>'+l.address+'</td>'+
+      '<td>'+l.subway+'</td>'+
+      '<td>'+l.subwayDist+'</td>'+
+      '<td>'+l.contact+'<br><span style="font-size:.75rem;color:#999;">'+(l.company||'')+'</span></td>'+
+      '<td><span class="'+platformClass+'">'+l.platform+'</span></td>'+
+      '<td style="max-width:180px;">'+facilitiesHtml+'</td>'+
+      '<td style="max-width:200px;">'+featuresHtml+'</td>'+
+      '<td>'+linkHtml+'</td>'+
+      '<td><button class="edit-btn" onclick="openEditModal('+l.id+')">编辑</button><button class="del-btn" data-id="'+l.id+'" onclick="deleteListing('+l.id+')">删除</button></td>';
+    tbody.appendChild(tr);
+  });
+  if(list.length===0){
+    tbody.innerHTML='<tr><td colspan="16" style="text-align:center;padding:30px;color:#999;">暂无房源数据</td></tr>';
+  }
+}
+
+// ==================== Update Stats ====================
+function updateStats(data){
+  var list=data||getAllListings();
+  document.getElementById('statTotal').textContent=list.length;
+  document.getElementById('statHongqiao').textContent=list.filter(function(l){return l.area==='虹桥区域';}).length;
+  document.getElementById('statAirport').textContent=list.filter(function(l){return l.area==='市域机场线';}).length;
+  document.getElementById('statNanhui').textContent=list.filter(function(l){return l.area==='南汇支线';}).length;
+  document.getElementById('statGov').textContent=list.filter(function(l){return l.area==='公租房/保租房';}).length;
+}
+
+// ==================== Render Recommend ====================
+function renderRecommend(){
+  var tbody=document.getElementById('recommendBody');
+  var all=getAllListings();
+  var sorted=all.slice().sort(function(a,b){return a.price-b.price;});
+  var top7=sorted.slice(0,7);
+  tbody.innerHTML='';
+  top7.forEach(function(l,idx){
+    var tr=document.createElement('tr');
+    tr.innerHTML=
+      '<td style="font-weight:700;color:#1565c0;">'+(idx+1)+'</td>'+
+      '<td>'+l.name+'</td>'+
+      '<td>'+l.area+'</td>'+
+      '<td style="color:#e4393c;font-weight:600;">'+l.priceStr+'</td>'+
+      '<td>'+l.layout+'</td>'+
+      '<td>'+(l.features||[]).slice(0,3).map(function(f){return '<span class="feature-badge">'+f+'</span>';}).join('')+'</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+// ==================== Refresh All ====================
+function refreshAll(){
+  var all=getAllListings();
+  updateStats(all);
+  renderTable(all);
+  renderMapMarkers(all);
+  renderRecommend();
+  updateRestorePanel();
+}
+
+// ==================== Filter Functions ====================
+function applyFilters(){
+  var lineFilter=document.getElementById('lineFilter').value;
+  var typeFilter=document.getElementById('typeFilter').value;
+  var kw=document.getElementById('keywordFilter').value.toLowerCase().trim();
+  var all=getAllListings();
+  var filtered=all.filter(function(l){
+    if(lineFilter&&l.area!==lineFilter)return false;
+    if(typeFilter&&l.type!==typeFilter)return false;
+    if(kw){
+      var text=(l.name+l.address+l.subway+l.contact+(l.features||[]).join('')).toLowerCase();
+      if(text.indexOf(kw)===-1)return false;
+    }
+    return true;
+  });
+  updateStats(filtered);
+  renderTable(filtered);
+  renderMapMarkers(filtered);
+}
+
+function resetFilters(){
+  document.getElementById('lineFilter').value='';
+  document.getElementById('typeFilter').value='';
+  document.getElementById('keywordFilter').value='';
+  refreshAll();
+}
+
+// ==================== Table Click Handler ====================
+document.getElementById('tableBody').addEventListener('click',function(e){
+  var target=e.target;
+  if(target.classList.contains('del-btn'))return;
+  var tr=target.closest('tr');
+  if(!tr)return;
+});
+
+// ==================== Form Toggle ====================
+function toggleForm(){
+  var content=document.getElementById('formContent');
+  var toggle=document.getElementById('formToggle');
+  if(content.style.display==='none'||content.style.display===''){
+    content.style.display='block';
+    toggle.innerHTML='▼ 添加房源';
+  }else{
+    content.style.display='none';
+    toggle.innerHTML='▶ 添加房源';
+  }
+}
+
+// ==================== Pick Coords ====================
+var pickMode=false;
+function togglePickCoords(){
+  pickMode=!pickMode;
+  var btn=document.getElementById('pickBtn');
+  var hint=document.getElementById('pickHint');
+  if(pickMode){
+    btn.classList.add('active');
+    btn.textContent='点击地图拾取...';
+    hint.textContent='请在地图上点击目标位置拾取坐标';
+    hint.classList.add('show');
+    exitEditMode();
+  }else{
+    btn.classList.remove('active');
+    btn.textContent='地图拾取坐标';
+    hint.classList.remove('show');
+  }
+}
+
+map.on('click',function(e){
+  if(pickMode){
+    document.getElementById('f_lat').value=e.latlng.lat.toFixed(6);
+    document.getElementById('f_lng').value=e.latlng.lng.toFixed(6);
+    pickMode=false;
+    var btn=document.getElementById('pickBtn');
+    btn.classList.remove('active');
+    btn.textContent='地图拾取坐标';
+    document.getElementById('pickHint').classList.remove('show');
+    return;
+  }
+  if(drawMode==='addMarker'){
+    addDrawnMarker(e.latlng);
+    return;
+  }
+  if(drawMode==='deleteMarker'){
+    // handled by marker click
+    return;
+  }
+});
+
+// ==================== Submit Listing ====================
+function submitListing(){
+  var name=document.getElementById('f_name').value.trim();
+  var price=document.getElementById('f_price').value.trim();
+  if(!name){alert('请输入房源名称');return;}
+  if(!price){alert('请输入月租价格');return;}
+  var type=document.getElementById('f_type').value;
+  var area=document.getElementById('f_area').value;
+  var platform=document.getElementById('f_platform').value;
+  var platformClassMap={'58同城':'platform-58','安居客':'platform-anjuke','自如':'platform-ziroom','Wellcee':'platform-wellcee','诸葛找房':'platform-zhuge','闵行公租房平台':'platform-gov','浦东公租房':'platform-gov','临港保租房':'platform-gov','上海住房租赁平台':'platform-gov','其他':''};
+  var facilities=[];
+  document.querySelectorAll('#f_facilities_group input[type="checkbox"]:checked').forEach(function(cb){facilities.push(cb.value);});
+  var customFacs=[];
+  document.querySelectorAll('#f_facilities_group .custom-badge').forEach(function(b){customFacs.push(b.textContent.replace('×','').trim());});
+  facilities=facilities.concat(customFacs);
+  var features=[];
+  document.querySelectorAll('#f_features_group input[type="checkbox"]:checked').forEach(function(cb){features.push(cb.value);});
+  var customFeats=[];
+  document.querySelectorAll('#f_features_group .custom-badge').forEach(function(b){customFeats.push(b.textContent.replace('×','').trim());});
+  features=features.concat(customFeats);
+  var listing={
+    id:nextCustomId++,
+    area:area,
+    name:name,
+    price:parseInt(price),
+    priceStr:price+'元/月',
+    layout:document.getElementById('f_layout').value.trim()||'-',
+    area_size:document.getElementById('f_area_size').value.trim()||'-',
+    type:type,
+    address:document.getElementById('f_address').value.trim()||'-',
+    subway:document.getElementById('f_subway').value.trim()||'-',
+    subwayDist:document.getElementById('f_subwayDist').value.trim()||'-',
+    contact:document.getElementById('f_contact').value.trim()||'-',
+    company:document.getElementById('f_company').value.trim()||'-',
+    platform:platform,
+    platformClass:platformClassMap[platform]||'',
+    url:document.getElementById('f_url').value.trim()||'',
+    features:features,
+    facilities:facilities,
+    payment:document.getElementById('f_payment').value.trim()||'-',
+    lat:parseFloat(document.getElementById('f_lat').value)||31.10,
+    lng:parseFloat(document.getElementById('f_lng').value)||121.45,
+    notes:document.getElementById('f_notes').value.trim()||''
+  };
+  customListings.push(listing);
+  saveCustomListings();
+  refreshAll();
+  clearForm();
+  alert('房源「'+name+'」已添加成功！');
+}
+
+function clearForm(){
+  document.getElementById('f_name').value='';
+  document.getElementById('f_price').value='';
+  document.getElementById('f_layout').value='';
+  document.getElementById('f_area_size').value='';
+  document.getElementById('f_address').value='';
+  document.getElementById('f_subway').value='';
+  document.getElementById('f_subwayDist').value='';
+  document.getElementById('f_contact').value='';
+  document.getElementById('f_company').value='';
+  document.getElementById('f_payment').value='';
+  document.getElementById('f_url').value='';
+  document.getElementById('f_notes').value='';
+  document.getElementById('f_lat').value='';
+  document.getElementById('f_lng').value='';
+  document.querySelectorAll('#f_facilities_group input[type="checkbox"]').forEach(function(cb){cb.checked=false;});
+  document.querySelectorAll('#f_features_group input[type="checkbox"]').forEach(function(cb){cb.checked=false;});
+  document.querySelectorAll('#f_facilities_group .custom-badge').forEach(function(b){b.remove();});
+  document.querySelectorAll('#f_features_group .custom-badge').forEach(function(b){b.remove();});
+  document.getElementById('f_facilities_custom').value='';
+  document.getElementById('f_features_custom').value='';
+}
+
+// ==================== Custom Facility/Feature ====================
+function addCustomFacility(){
+  var input=document.getElementById('f_facilities_custom');
+  var val=input.value.trim();
+  if(!val)return;
+  var group=document.getElementById('f_facilities_group');
+  var badge=document.createElement('span');
+  badge.className='custom-badge';
+  badge.innerHTML=val+' <button type="button" onclick="this.parentElement.remove()">×</button>';
+  group.appendChild(badge);
+  input.value='';
+}
+
+function addCustomFeature(){
+  var input=document.getElementById('f_features_custom');
+  var val=input.value.trim();
+  if(!val)return;
+  var group=document.getElementById('f_features_group');
+  var badge=document.createElement('span');
+  badge.className='custom-badge';
+  badge.innerHTML=val+' <button type="button" onclick="this.parentElement.remove()">×</button>';
+  group.appendChild(badge);
+  input.value='';
+}
+
+// ==================== Init Checkbox Groups IIFE ====================
+(function initCheckboxGroups(){
+  // groups are initialized in HTML, no extra JS needed
+})();
+
+// ==================== Delete / Restore ====================
+function deleteListing(id){
+  if(!confirm('确定要删除该房源吗？'))return;
+  if(deletedIds.indexOf(id)===-1){
+    deletedIds.push(id);
+    saveDeletedIds();
+  }
+  refreshAll();
+}
+
+function toggleRestorePanel(){
+  var panel=document.getElementById('restorePanel');
+  if(panel.style.display==='none'||panel.style.display===''){
+    panel.style.display='block';
+    updateRestorePanel();
+  }else{
+    panel.style.display='none';
+  }
+}
+
+function updateRestorePanel(){
+  var list=document.getElementById('restoreList');
+  if(deletedIds.length===0){
+    list.innerHTML='<p style="color:#999;text-align:center;padding:10px;">暂无已删除房源</p>';
+    return;
+  }
+  list.innerHTML='';
+  var allDeleted=[];
+  originalListings.forEach(function(l){if(deletedIds.indexOf(l.id)!==-1)allDeleted.push(l);});
+  customListings.forEach(function(l){if(deletedIds.indexOf(l.id)!==-1)allDeleted.push(l);});
+  allDeleted.forEach(function(l){
+    var div=document.createElement('div');
+    div.className='restore-item';
+    div.innerHTML='<span>'+l.name+'（'+l.area+'，'+l.priceStr+'）</span><button onclick="restoreListing('+l.id+')">恢复</button>';
+    list.appendChild(div);
+  });
+}
+
+function restoreListing(id){
+  var idx=deletedIds.indexOf(id);
+  if(idx!==-1){
+    deletedIds.splice(idx,1);
+    saveDeletedIds();
+  }
+  refreshAll();
+}
+
+// ==================== Export / Clear ====================
+function exportData(){
+  var all=getAllListings();
+  var dataStr=JSON.stringify(all,null,2);
+  var blob=new Blob([dataStr],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;
+  a.download='上海租房信息_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function clearAllCustom(){
+  if(!confirm('确定要清除所有自定义房源吗？此操作不可撤销！'))return;
+  customListings=[];
+  saveCustomListings();
+  // Also remove custom IDs from deletedIds
+  deletedIds=deletedIds.filter(function(id){return id<=29;});
+  saveDeletedIds();
+  refreshAll();
+  alert('已清除所有自定义房源');
+}
+
+// ==================== Geocode ====================
+function geocodeAddress(){
+  var address=document.getElementById('f_address').value.trim();
+  if(!address){alert('请先填写地址');return;}
+  var url='https://nominatim.openstreetmap.org/search?format=json&q='+encodeURIComponent(address+' 上海');
+  fetch(url,{headers:{'Accept':'application/json'}})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data&&data.length>0){
+        document.getElementById('f_lat').value=parseFloat(data[0].lat).toFixed(6);
+        document.getElementById('f_lng').value=parseFloat(data[0].lon).toFixed(6);
+        alert('地址定位成功：'+data[0].display_name);
+      }else{
+        alert('未能找到该地址的坐标，请尝试在地图上手动拾取');
+      }
+    })
+    .catch(function(e){
+      alert('地址定位失败，请检查网络或手动拾取坐标');
+    });
+}
+
+// ==================== Draw Mode ====================
+var drawMode=null;
+var routePoints=[];
+var routeLine=null;
+
+function toggleAddMarker(){
+  if(drawMode==='addMarker'){
+    setDrawMode(null);
+  }else{
+    setDrawMode('addMarker');
+  }
+}
+
+function toggleDrawRoute(){
+  if(drawMode==='drawRoute'){
+    setDrawMode(null);
+  }else{
+    routePoints=[];
+    if(routeLine){drawRouteLayer.removeLayer(routeLine);routeLine=null;}
+    setDrawMode('drawRoute');
+  }
+}
+
+function toggleDeleteMode(){
+  if(drawMode==='deleteMarker'){
+    setDrawMode(null);
+  }else{
+    setDrawMode('deleteMarker');
+  }
+}
+
+function exitEditMode(){
+  setDrawMode(null);
+}
+
+function setDrawMode(mode){
+  drawMode=mode;
+  document.getElementById('toolAddMarker').classList.toggle('active',mode==='addMarker');
+  document.getElementById('toolDrawRoute').classList.toggle('active',mode==='drawRoute');
+  document.getElementById('toolDelete').classList.toggle('active',mode==='deleteMarker');
+  if(mode===null){
+    routePoints=[];
+    if(routeLine){drawRouteLayer.removeLayer(routeLine);routeLine=null;}
+  }
+}
+
+// Draw mode click handler (integrated into main map click handler above)
+// Route drawing on double click
+map.on('dblclick',function(e){
+  if(drawMode==='drawRoute'){
+    routePoints.push([e.latlng.lat,e.latlng.lng]);
+    var dotIcon=L.divIcon({html:'<div style="background:#e91e63;width:10px;height:10px;border-radius:50%;border:2px solid #fff;"></div>',className:'',iconSize:[10,10],iconAnchor:[5,5]});
+    L.marker(e.latlng,{icon:dotIcon}).addTo(drawRouteLayer);
+    if(routePoints.length>=2){
+      if(routeLine){drawRouteLayer.removeLayer(routeLine);}
+      routeLine=L.polyline(routePoints,{color:'#e91e63',weight:3,opacity:.7,dashArray:'8,4'}).addTo(drawRouteLayer);
+    }
+    saveDrawings();
+  }
+});
+
+function addDrawnMarker(latlng){
+  var icon=L.divIcon({html:'<div style="background:#1565c0;width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:bold;">+</div>',className:'',iconSize:[24,24],iconAnchor:[12,12]});
+  var marker=L.marker(latlng,{icon:icon,draggable:true});
+  marker.bindPopup('<div class="popup-card"><div class="popup-title">自定义标记</div><div>坐标：'+latlng.lat.toFixed(6)+', '+latlng.lng.toFixed(6)+'</div><button class="del-btn" style="margin-top:6px;" onclick="removeDrawnMarker('+marker._leaflet_id+')">删除此标记</button></div>');
+  marker.addTo(drawnItems);
+  saveDrawings();
+  return marker;
+}
+
+function removeDrawnMarker(leafletId){
+  drawnItems.eachLayer(function(layer){
+    if(layer._leaflet_id===leafletId){
+      drawnItems.removeLayer(layer);
+      saveDrawings();
+    }
+  });
+}
+
+function clearAllDrawings(){
+  if(!confirm('确定要清空所有绘制内容吗？'))return;
+  drawnItems.clearLayers();
+  drawRouteLayer.clearLayers();
+  routePoints=[];
+  routeLine=null;
+  saveDrawings();
+}
+
+// ==================== Drawings Persistence ====================
+function saveDrawings(){
+  try{
+    var markers=[];
+    drawnItems.eachLayer(function(layer){
+      if(layer.getLatLng){
+        markers.push({lat:layer.getLatLng().lat,lng:layer.getLatLng().lng});
+      }
+    });
+    var routes=[];
+    if(routeLine){
+      routes=routeLine.getLatLngs().map(function(ll){return [ll.lat,ll.lng];});
+    }
+    localStorage.setItem('sh_rental_drawings',JSON.stringify({markers:markers,routes:routes}));
+  }catch(e){}
+}
+
+function loadDrawings(){
+  try{
+    var d=localStorage.getItem('sh_rental_drawings');
+    if(!d)return;
+    var obj=JSON.parse(d);
+    if(obj.markers){
+      obj.markers.forEach(function(m){
+        addDrawnMarker([m.lat,m.lng]);
+      });
+    }
+    if(obj.routes&&obj.routes.length>=2){
+      routePoints=obj.routes.slice();
+      routeLine=L.polyline(routePoints,{color:'#e91e63',weight:3,opacity:.7,dashArray:'8,4'}).addTo(drawRouteLayer);
+      routePoints.forEach(function(p){
+        var dotIcon=L.divIcon({html:'<div style="background:#e91e63;width:10px;height:10px;border-radius:50%;border:2px solid #fff;"></div>',className:'',iconSize:[10,10],iconAnchor:[5,5]});
+        L.marker(p,{icon:dotIcon}).addTo(drawRouteLayer);
+      });
+    }
+  }catch(e){}
+}
+
+(function initDrawings(){
+  loadDrawings();
+})();
+
+// ==================== Delete drawn markers in delete mode ====================
+map.on('layeradd',function(e){
+  if(drawMode==='deleteMarker'&&e.layer!==map){
+    // Markers added in normal mode shouldn't be auto-deleted
+  }
+});
+
+drawnItems.on('click',function(e){
+  if(drawMode==='deleteMarker'){
+    drawnItems.removeLayer(e.layer);
+    saveDrawings();
+  }
+});
+
+drawRouteLayer.on('click',function(e){
+  if(drawMode==='deleteMarker'){
+    drawRouteLayer.removeLayer(e.layer);
+    if(e.layer===routeLine){routeLine=null;routePoints=[];}
+    saveDrawings();
+  }
+});
+
+// ==================== Edit Modal ====================
+function openEditModal(id){
+  var listing=getOriginalListing(id);
+  if(!listing)return;
+  editingId=id;
+  var current=getAllListings().filter(function(l){return l.id===id;})[0]||listing;
+  document.getElementById('editName').textContent=listing.name;
+  document.getElementById('editLat').value=current.lat||'';
+  document.getElementById('editLng').value=current.lng||'';
+  document.getElementById('editAddress').value=current.address||'';
+  document.getElementById('editSubway').value=current.subway||'';
+  document.getElementById('editSubwayDist').value=current.subwayDist||'';
+  document.getElementById('editContact').value=current.contact||'';
+  document.getElementById('editPrice').value=current.price||'';
+  var resetBtn=document.getElementById('resetBtn');
+  if(id<=1000&&listingOverrides[id]){
+    resetBtn.style.display='inline-block';
+  }else{
+    resetBtn.style.display='none';
+  }
+  document.getElementById('editModal').classList.add('show');
+}
+
+function closeEditModal(){
+  document.getElementById('editModal').classList.remove('show');
+  editingId=null;
+}
+
+function saveListingEdit(){
+  if(editingId===null)return;
+  var lat=parseFloat(document.getElementById('editLat').value);
+  var lng=parseFloat(document.getElementById('editLng').value);
+  var address=document.getElementById('editAddress').value.trim();
+  var subway=document.getElementById('editSubway').value.trim();
+  var subwayDist=document.getElementById('editSubwayDist').value.trim();
+  var contact=document.getElementById('editContact').value.trim();
+  var priceVal=document.getElementById('editPrice').value.trim();
+  if(editingId<=1000){
+    // Original listing - save to overrides
+    if(!listingOverrides[editingId])listingOverrides[editingId]={};
+    if(!isNaN(lat))listingOverrides[editingId].lat=lat;
+    if(!isNaN(lng))listingOverrides[editingId].lng=lng;
+    if(address)listingOverrides[editingId].address=address;
+    if(subway)listingOverrides[editingId].subway=subway;
+    if(subwayDist)listingOverrides[editingId].subwayDist=subwayDist;
+    if(contact)listingOverrides[editingId].contact=contact;
+    if(priceVal){
+      var pNum=parseInt(priceVal);
+      if(!isNaN(pNum)){
+        listingOverrides[editingId].price=pNum;
+        listingOverrides[editingId].priceStr=priceVal+'元/月';
+      }
+    }
+    saveOverrides();
+  }else{
+    // Custom listing - update directly
+    for(var i=0;i<customListings.length;i++){
+      if(customListings[i].id===editingId){
+        if(!isNaN(lat))customListings[i].lat=lat;
+        if(!isNaN(lng))customListings[i].lng=lng;
+        if(address)customListings[i].address=address;
+        if(subway)customListings[i].subway=subway;
+        if(subwayDist)customListings[i].subwayDist=subwayDist;
+        if(contact)customListings[i].contact=contact;
+        if(priceVal){
+          var pN=parseInt(priceVal);
+          if(!isNaN(pN)){customListings[i].price=pN;customListings[i].priceStr=priceVal+'元/月';}
+        }
+        break;
+      }
+    }
+    saveCustomListings();
+  }
+  closeEditModal();
+  refreshAll();
+}
+
+function resetListingEdit(){
+  if(editingId===null||editingId>1000)return;
+  if(!confirm('确定要重置该房源的修改吗？所有已修改的字段将恢复为原始值。'))return;
+  delete listingOverrides[editingId];
+  saveOverrides();
+  closeEditModal();
+  refreshAll();
+}
+
+function geocodeEditAddress(){
+  var addr=document.getElementById('editAddress').value.trim();
+  if(!addr){
+    alert('请先输入地址');
+    return;
+  }
+  var fullAddr=addr.indexOf('上海')===-1?'上海'+addr:addr;
+  var url='https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(fullAddr)+'&format=json&limit=1';
+  var btn=event.target;
+  btn.textContent='定位中...';
+  btn.disabled=true;
+  fetch(url,{headers:{'Accept':'application/json'}})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data&&data.length>0){
+        document.getElementById('editLat').value=parseFloat(data[0].lat).toFixed(4);
+        document.getElementById('editLng').value=parseFloat(data[0].lon).toFixed(4);
+        btn.textContent='地址定位';
+        btn.disabled=false;
+      }else{
+        alert('未找到该地址的坐标，请手动输入经纬度');
+        btn.textContent='地址定位';
+        btn.disabled=false;
+      }
+    })
+    .catch(function(){
+      alert('定位失败，请手动输入经纬度');
+      btn.textContent='地址定位';
+      btn.disabled=false;
+    });
+}
+
+// ==================== Connection Status & Real-time Sync ====================
+function updateSyncStatus(status, text){
+  var dot=document.getElementById('syncDot');
+  var txt=document.getElementById('syncText');
+  dot.className='sync-dot '+status;
+  txt.textContent=text;
+}
+
+if(firebaseEnabled){
+  // Monitor connection state
+  db.ref('.info/connected').on('value', function(snapshot){
+    if(snapshot.val()===true){
+      var txt=document.getElementById('syncText');
+      var currentText=txt.textContent;
+      // Preserve lastModified time if present
+      if(currentText.indexOf('最后更新')!==-1){
+        var timePart=currentText.split('最后更新: ')[1];
+        updateSyncStatus('online', '已连接 · 最后更新: '+timePart);
+      }else{
+        updateSyncStatus('online', '已连接');
+      }
+    }else{
+      updateSyncStatus('offline', '离线模式');
+    }
+  });
+
+  // Listen for lastModified timestamp
+  db.ref('lastModified').on('value', function(snapshot){
+    var val=snapshot.val();
+    if(val&&val.time){
+      var d=new Date(val.time);
+      var timeStr=d.getHours().toString().padStart(2,'0')+':'+
+                   d.getMinutes().toString().padStart(2,'0')+':'+
+                   d.getSeconds().toString().padStart(2,'0');
+      var dot=document.getElementById('syncDot');
+      if(dot.classList.contains('online')){
+        document.getElementById('syncText').textContent='已连接 · 最后更新: '+timeStr;
+      }
+    }
+  });
+
+  // Listen for real-time changes - customListings
+  db.ref('customListings').on('value', function(snapshot){
+    customListings = snapshot.val() || [];
+    if(!Array.isArray(customListings)) customListings = Object.values(customListings);
+    // Recalculate nextCustomId
+    var max=1000;
+    customListings.forEach(function(l){if(l.id>max)max=l.id;});
+    nextCustomId=max+1;
+    refreshAll();
+  });
+  // Listen for real-time changes - deletedIds
+  db.ref('deletedIds').on('value', function(snapshot){
+    var val=snapshot.val();
+    if(Array.isArray(val)){deletedIds=val;}
+    else if(val){deletedIds=Object.keys(val).map(Number);}
+    else{deletedIds=[];}
+    refreshAll();
+  });
+  // Listen for real-time changes - overrides
+  db.ref('overrides').on('value', function(snapshot){
+    listingOverrides=snapshot.val()||{};
+    refreshAll();
+  });
+} else {
+  updateSyncStatus('unconfigured', '未配置');
+}
+
+// ==================== Initialize ====================
+refreshAll();
+</script>
+
+</body>
+</html>
