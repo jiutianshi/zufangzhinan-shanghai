@@ -7,7 +7,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#f0f2f5;color:#333;line-height:1.6;}
+body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#f0f2f5;color:#333;line-height:1.6;overflow-x:hidden;}
 header{background:linear-gradient(135deg,#1565c0,#0d47a1);color:#fff;padding:28px 20px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.15);position:relative;}
 header h1{font-size:1.9rem;margin-bottom:6px;font-weight:700;}
 header p{font-size:.95rem;opacity:.85;}
@@ -34,12 +34,6 @@ header p{font-size:.95rem;opacity:.85;}
 .map-toolbar button:hover{background:#1565c0;color:#fff;border-color:#1565c0;}
 .map-toolbar button.active{background:#1565c0;color:#fff;border-color:#1565c0;}
 .map-toolbar .divider{width:1px;background:#ccc;margin:2px 4px;}
-.recommend{background:#fff;border-radius:10px;padding:20px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,.08);}
-.recommend h2{color:#0d47a1;margin-bottom:12px;font-size:1.3rem;}
-.recommend table{width:100%;border-collapse:collapse;font-size:.85rem;}
-.recommend th{background:#e3f2fd;padding:8px;text-align:left;border-bottom:2px solid #1565c0;color:#0d47a1;white-space:nowrap;}
-.recommend td{padding:8px;border-bottom:1px solid #eee;}
-.recommend tr:hover td{background:#f5f9ff;}
 .table-section{background:#fff;border-radius:10px;padding:20px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,.08);}
 .table-section h2{color:#0d47a1;margin-bottom:12px;font-size:1.3rem;}
 .filter-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
@@ -61,7 +55,7 @@ header p{font-size:.95rem;opacity:.85;}
 #clearAllCustom{background:#e53935;color:#fff;}
 #clearAllCustom:hover{background:#c62828;}
 .table-wrap{overflow-x:auto;}
-table{width:100%;border-collapse:collapse;font-size:.83rem;}
+table{width:100%;min-width:1400px;border-collapse:collapse;font-size:.83rem;}
 thead th{background:#1565c0;color:#fff;padding:10px 8px;text-align:left;position:sticky;top:0;z-index:10;white-space:nowrap;}
 tbody td{padding:8px;border-bottom:1px solid #eee;vertical-align:top;}
 tbody tr:hover{background:#f5f9ff;}
@@ -229,19 +223,9 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 <div class="legend-item"><span class="legend-dot" style="background:#7b1fa2;"></span>市域机场线</div>
 <div class="legend-item"><span class="legend-dot" style="background:#00897b;"></span>南汇支线</div>
 <div class="legend-item"><span class="legend-dot" style="background:#f57c00;"></span>公租房/保租房</div>
-<div class="legend-item"><span class="legend-dot" style="background:#546e7a;"></span>地铁/市域线站点</div>
 </div>
 
 </div>
-</div>
-
-<!-- Recommend -->
-<div class="recommend">
-<h2>TOP 7 推荐房源</h2>
-<table>
-<thead><tr><th>排名</th><th>房源</th><th>区域</th><th>月租</th><th>户型</th><th>亮点</th></tr></thead>
-<tbody id="recommendBody"></tbody>
-</table>
 </div>
 
 <!-- Table Section -->
@@ -263,11 +247,12 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 <div class="table-wrap">
 <table>
 <thead>
-<tr><th>序号</th><th>区域</th><th>房源</th><th>月租</th><th>户型</th><th>面积</th><th>类型</th><th>地址</th><th>最近地铁</th><th>距地铁</th><th>联系/运营方</th><th>来源平台</th><th>配套设施</th><th>亮点特色</th><th>链接</th><th>操作</th></tr>
+<tr><th>序号</th><th>区域</th><th>房源</th><th>月租</th><th>户型</th><th>面积</th><th>类型</th><th>地址</th><th>最近地铁</th><th>距地铁</th><th>联系/运营方</th><th>来源平台</th><th>配套设施</th><th>亮点特色</th><th>链接</th><th>发布者</th><th>发布时间</th><th class="col-action">操作</th></tr>
 </thead>
 <tbody id="tableBody"></tbody>
 </table>
 </div>
+<div id="paginationBar" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;flex-wrap:wrap;"></div>
 <div class="restore-panel" id="restorePanel">
 <h4>已删除房源（可恢复）</h4>
 <div id="restoreList"><p style="color:#999;text-align:center;padding:10px;">暂无已删除房源</p></div>
@@ -492,6 +477,17 @@ function updateUIForRole(){
     if(restoreBtn) restoreBtn.style.display='none';
   }
 
+  // 导出数据仅管理员可见
+  if(exportBtn){
+    exportBtn.style.display = isAdmin() ? '' : 'none';
+  }
+
+  // 操作列仅管理员/编辑者可见
+  var actionCells = document.querySelectorAll('.col-action');
+  actionCells.forEach(function(cell){
+    cell.style.display = canEdit() ? '' : 'none';
+  });
+
   // 登录状态显示
   if(currentUser){
     if(loginBtn) loginBtn.style.display='none';
@@ -514,6 +510,7 @@ function updateUIForRole(){
   }
 
   // 刷新表格以更新按钮显示
+  currentPage = 1;
   refreshAll();
 }
 
@@ -968,7 +965,7 @@ function renderMapMarkers(data){
   var list=data||getAllListings();
   list.forEach(function(l){
     if(!l.lat||!l.lng)return;
-    var marker=L.marker([l.lat,l.lng],{icon:getMarkerIcon(l),draggable:true});
+    var marker=L.marker([l.lat,l.lng],{icon:getMarkerIcon(l),draggable:canEdit()});
     var popupHtml='<div class="popup-card">'+
       '<div class="popup-title">'+l.name+(l._overridden?'<span class="coord-override-badge">已修改</span>':'')+'</div>'+
       '<div class="popup-price">'+l.priceStr+'</div>'+
@@ -1004,39 +1001,41 @@ function renderMapMarkers(data){
   // Workplace marker
   var wpIcon=L.divIcon({html:'<div style="background:#1565c0;width:32px;height:32px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:bold;">★</div>',className:'',iconSize:[32,32],iconAnchor:[16,16]});
   L.marker([workplace.lat,workplace.lng],{icon:wpIcon}).bindPopup('<div class="popup-card"><div class="popup-title">'+workplace.name+'</div></div>').addTo(markerLayer);
-  // Station markers
-  stationLayer.clearLayers();
-  airportLineStations.forEach(function(s){
-    var icon=L.divIcon({html:'<div style="background:#546e7a;width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3);"></div>',className:'',iconSize:[12,12],iconAnchor:[6,6]});
-    L.marker([s.lat,s.lng],{icon:icon}).bindPopup('<div class="popup-card"><div class="popup-title">'+s.name+'</div>市域机场线站点</div>').addTo(stationLayer);
-  });
-  nanhuiLineStations.forEach(function(s){
-    var icon=L.divIcon({html:'<div style="background:#546e7a;width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3);"></div>',className:'',iconSize:[12,12],iconAnchor:[6,6]});
-    L.marker([s.lat,s.lng],{icon:icon}).bindPopup('<div class="popup-card"><div class="popup-title">'+s.name+'</div>南汇支线站点</div>').addTo(stationLayer);
-  });
 }
 
 // ==================== Render Table ====================
+// ===== 分页状态 =====
+var currentPage = 1;
+var pageSize = 20;
+var currentListData = [];
+
 function renderTable(data){
   var tbody=document.getElementById('tableBody');
   var list=data||getAllListings();
+  currentListData = list;
+  
+  // 分页计算
+  var totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+  if(currentPage > totalPages) currentPage = totalPages;
+  var startIdx = (currentPage - 1) * pageSize;
+  var pageData = list.slice(startIdx, startIdx + pageSize);
+  
   tbody.innerHTML='';
-  list.forEach(function(l,idx){
+  pageData.forEach(function(l,idx){
     var tr=document.createElement('tr');
     var platformClass=l.platformClass||'';
     var featuresHtml=(l.features||[]).map(function(f){return '<span class="feature-badge">'+f+'</span>';}).join('');
     var facilitiesHtml=(l.facilities||[]).join('、');
     var linkHtml=l.url?'<a href="'+l.url+'" target="_blank" class="'+platformClass+'">查看</a>':'-';
-    // 根据角色显示操作按钮
-    var editBtnHtml = canEdit() ? '<button class="edit-btn" onclick="openEditModal('+l.id+')">编辑</button>' : '';
-    var delBtnHtml = canDelete(l.id) ? '<button class="del-btn" data-id="'+l.id+'" onclick="deleteListing('+l.id+')">删除</button>' : '';
-    // 显示发布者信息（管理员可见）
-    var creatorHtml = '';
-    if(isAdmin() && l.createdBy){
-      creatorHtml = '<div style="font-size:.7rem;color:#999;margin-top:2px;">发布者：'+(l.createdByEmail||l.createdBy)+'</div>';
-    }
+    // 根据角色和所有权显示操作按钮
+    var editBtnHtml = canEditListing(l) ? '<button class="edit-btn" onclick="openEditModal('+l.id+')">编辑</button>' : '';
+    var delBtnHtml = canDeleteListing(l) ? '<button class="del-btn" data-id="'+l.id+'" onclick="deleteListing('+l.id+')">删除</button>' : '';
+    // 发布者信息
+    var publisherHtml = l.createdByEmail ? l.createdByEmail : (l.id>1000 ? '自定义' : '系统导入');
+    // 发布时间
+    var publishTimeHtml = l.createdAt ? formatDateTime(l.createdAt) : '-';
     tr.innerHTML=
-      '<td>'+(idx+1)+'</td>'+
+      '<td>'+(startIdx+idx+1)+'</td>'+
       '<td>'+l.area+'</td>'+
       '<td>'+l.name+(l.id>1000?' <span class="feature-badge" style="background:#c8e6c9;color:#2e7d32;">自定义</span>':'')+'</td>'+
       '<td style="color:#e4393c;font-weight:600;">'+l.priceStr+'</td>'+
@@ -1046,17 +1045,111 @@ function renderTable(data){
       '<td>'+l.address+'</td>'+
       '<td>'+l.subway+'</td>'+
       '<td>'+l.subwayDist+'</td>'+
-      '<td>'+l.contact+'<br><span style="font-size:.75rem;color:#999;">'+(l.company||'')+'</span>'+creatorHtml+'</td>'+
+      '<td>'+l.contact+'<br><span style="font-size:.75rem;color:#999;">'+(l.company||'')+'</span></td>'+
       '<td><span class="'+platformClass+'">'+l.platform+'</span></td>'+
       '<td style="max-width:180px;">'+facilitiesHtml+'</td>'+
       '<td style="max-width:200px;">'+featuresHtml+'</td>'+
       '<td>'+linkHtml+'</td>'+
-      '<td>'+editBtnHtml+delBtnHtml+'</td>';
+      '<td style="font-size:.75rem;color:#666;">'+publisherHtml+'</td>'+
+      '<td style="font-size:.75rem;color:#999;">'+publishTimeHtml+'</td>'+
+      '<td class="col-action">'+editBtnHtml+delBtnHtml+'</td>';
     tbody.appendChild(tr);
   });
   if(list.length===0){
-    tbody.innerHTML='<tr><td colspan="16" style="text-align:center;padding:30px;color:#999;">暂无房源数据</td></tr>';
+    tbody.innerHTML='<tr><td colspan="18" style="text-align:center;padding:30px;color:#999;">暂无房源数据</td></tr>';
   }
+  
+  // 渲染分页控制
+  renderPagination(list.length, totalPages);
+}
+
+// 格式化时间
+function formatDateTime(ts){
+  if(!ts) return '-';
+  try{
+    var d = new Date(ts);
+    var m = String(d.getMonth()+1).padStart(2,'0');
+    var day = String(d.getDate()).padStart(2,'0');
+    var h = String(d.getHours()).padStart(2,'0');
+    var min = String(d.getMinutes()).padStart(2,'0');
+    return d.getFullYear()+'-'+m+'-'+day+' '+h+':'+min;
+  }catch(e){ return '-'; }
+}
+
+// 渲染分页条
+function renderPagination(total, totalPages){
+  var bar = document.getElementById('paginationBar');
+  if(!bar) return;
+  if(total <= pageSize){
+    bar.innerHTML = '<span style="color:#999;font-size:.85rem;">共 '+total+' 条房源</span>';
+    bar.style.display = 'flex';
+    return;
+  }
+  bar.style.display = 'flex';
+  var html = '<span style="color:#999;font-size:.85rem;margin-right:8px;">共 '+total+' 条</span>';
+  
+  // 上一页
+  if(currentPage > 1){
+    html += '<button class="page-btn" onclick="goToPage('+(currentPage-1)+')" style="padding:4px 10px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">&laquo; 上一页</button>';
+  }
+  
+  // 页码按钮
+  var start = Math.max(1, currentPage - 3);
+  var end = Math.min(totalPages, currentPage + 3);
+  if(start > 1){
+    html += '<button class="page-btn" onclick="goToPage(1)" style="padding:4px 10px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">1</button>';
+    if(start > 2) html += '<span style="color:#999;">...</span>';
+  }
+  for(var i = start; i <= end; i++){
+    var active = i === currentPage;
+    html += '<button class="page-btn" onclick="goToPage('+i+')" style="padding:4px 10px;border:1px solid '+(active?'#1565c0':'#ddd')+';border-radius:4px;background:'+(active?'#1565c0':'#fff')+';color:'+(active?'#fff':'#333')+';cursor:pointer;font-weight:'+(active?'700':'400')+';">'+i+'</button>';
+  }
+  if(end < totalPages){
+    if(end < totalPages - 1) html += '<span style="color:#999;">...</span>';
+    html += '<button class="page-btn" onclick="goToPage('+totalPages+')" style="padding:4px 10px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">'+totalPages+'</button>';
+  }
+  
+  // 下一页
+  if(currentPage < totalPages){
+    html += '<button class="page-btn" onclick="goToPage('+(currentPage+1)+')" style="padding:4px 10px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">下一页 &raquo;</button>';
+  }
+  
+  // 跳转输入
+  html += '<span style="margin-left:8px;font-size:.85rem;color:#666;">跳至 <input type="number" id="pageJumpInput" min="1" max="'+totalPages+'" value="'+currentPage+'" style="width:50px;padding:2px 4px;border:1px solid #ddd;border-radius:4px;text-align:center;" onchange="goToPage(parseInt(this.value)||1)"> 页</span>';
+  
+  bar.innerHTML = html;
+}
+
+function goToPage(page){
+  var totalPages = Math.max(1, Math.ceil(currentListData.length / pageSize));
+  if(page < 1) page = 1;
+  if(page > totalPages) page = totalPages;
+  currentPage = page;
+  renderTable(currentListData);
+  // 滚动到表格顶部
+  document.querySelector('.table-section').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// 检查是否可以编辑某条房源
+function canEditListing(l){
+  if(userRole==='admin') return true;
+  if(userRole==='editor'){
+    if(!supabaseEnabled) return true; // 离线模式
+    // 编辑者只能编辑自己发布的房源
+    return l.id > 1000 && l.createdBy === (currentUser ? currentUser.id : '');
+  }
+  return false;
+}
+
+// 检查是否可以删除某条房源
+function canDeleteListing(l){
+  if(userRole==='admin') return true;
+  if(userRole==='editor'){
+    if(!supabaseEnabled) return true; // 离线模式
+    // 编辑者只能删除自己发布的房源
+    return l.id > 1000 && l.createdBy === (currentUser ? currentUser.id : '');
+  }
+  return false;
 }
 
 // ==================== Update Stats ====================
@@ -1069,33 +1162,12 @@ function updateStats(data){
   document.getElementById('statGov').textContent=list.filter(function(l){return l.area==='公租房/保租房';}).length;
 }
 
-// ==================== Render Recommend ====================
-function renderRecommend(){
-  var tbody=document.getElementById('recommendBody');
-  var all=getAllListings();
-  var sorted=all.slice().sort(function(a,b){return a.price-b.price;});
-  var top7=sorted.slice(0,7);
-  tbody.innerHTML='';
-  top7.forEach(function(l,idx){
-    var tr=document.createElement('tr');
-    tr.innerHTML=
-      '<td style="font-weight:700;color:#1565c0;">'+(idx+1)+'</td>'+
-      '<td>'+l.name+'</td>'+
-      '<td>'+l.area+'</td>'+
-      '<td style="color:#e4393c;font-weight:600;">'+l.priceStr+'</td>'+
-      '<td>'+l.layout+'</td>'+
-      '<td>'+(l.features||[]).slice(0,3).map(function(f){return '<span class="feature-badge">'+f+'</span>';}).join('')+'</td>';
-    tbody.appendChild(tr);
-  });
-}
-
 // ==================== Refresh All ====================
 function refreshAll(){
   var all=getAllListings();
   updateStats(all);
   renderTable(all);
   renderMapMarkers(all);
-  renderRecommend();
   updateRestorePanel();
 }
 
@@ -1114,6 +1186,7 @@ function applyFilters(){
     }
     return true;
   });
+  currentPage = 1;
   updateStats(filtered);
   renderTable(filtered);
   renderMapMarkers(filtered);
@@ -1123,6 +1196,7 @@ function resetFilters(){
   document.getElementById('lineFilter').value='';
   document.getElementById('typeFilter').value='';
   document.getElementById('keywordFilter').value='';
+  currentPage = 1;
   refreshAll();
 }
 
@@ -1232,7 +1306,8 @@ function submitListing(){
     lng:parseFloat(document.getElementById('f_lng').value)||121.45,
     notes:document.getElementById('f_notes').value.trim()||'',
     createdBy:currentUser?currentUser.id:'',
-    createdByEmail:currentUser?(currentUser.email||currentUser.phone||''):''
+    createdByEmail:currentUser?(currentUser.email||currentUser.phone||''):'',
+    createdAt:new Date().toISOString()
   };
   customListings.push(listing);
   saveCustomListings();
@@ -1296,7 +1371,8 @@ function addCustomFeature(){
 
 // ==================== Delete / Restore ====================
 function deleteListing(id){
-  if(!canDelete(id)){
+  var listing = getOriginalListing(id);
+  if(!canDeleteListing(listing)){
     if(userRole==='visitor'){ alert('请先登录后再操作'); }
     else { alert('您只能删除自己发布的房源'); }
     return;
@@ -1455,7 +1531,7 @@ map.on('dblclick',function(e){
 
 function addDrawnMarker(latlng){
   var icon=L.divIcon({html:'<div style="background:#1565c0;width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:bold;">+</div>',className:'',iconSize:[24,24],iconAnchor:[12,12]});
-  var marker=L.marker(latlng,{icon:icon,draggable:true});
+  var marker=L.marker(latlng,{icon:icon,draggable:canEdit()});
   marker.bindPopup('<div class="popup-card"><div class="popup-title">自定义标记</div><div>坐标：'+latlng.lat.toFixed(6)+', '+latlng.lng.toFixed(6)+'</div><button class="del-btn" style="margin-top:6px;" onclick="removeDrawnMarker('+marker._leaflet_id+')">删除此标记</button></div>');
   marker.addTo(drawnItems);
   saveDrawings();
@@ -1546,9 +1622,13 @@ drawRouteLayer.on('click',function(e){
 
 // ==================== Edit Modal ====================
 function openEditModal(id){
-  if(!canEdit()){ alert('请先登录后再编辑'); return; }
   var listing=getOriginalListing(id);
   if(!listing)return;
+  if(!canEditListing(listing)){
+    if(userRole==='visitor'){ alert('请先登录后再编辑'); }
+    else { alert('您只能编辑自己发布的房源'); }
+    return;
+  }
   editingId=id;
   var current=getAllListings().filter(function(l){return l.id===id;})[0]||listing;
   document.getElementById('editName').textContent=listing.name;
