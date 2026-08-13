@@ -170,11 +170,6 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 .auth-submit{width:100%;padding:12px;background:#1565c0;color:#fff;border:none;border-radius:8px;font-size:1rem;cursor:pointer;transition:background .2s;margin-top:8px;}
 .auth-submit:hover{background:#0d47a1;}
 .auth-submit:disabled{background:#999;cursor:not-allowed;}
-/* 登录方式Tab */
-.auth-tabs{display:flex;margin-bottom:16px;border-bottom:2px solid #e0e0e0;}
-.auth-tab{flex:1;text-align:center;padding:10px 0;cursor:pointer;font-size:.88rem;color:#999;transition:all .2s;border-bottom:2px solid transparent;margin-bottom:-2px;}
-.auth-tab.active{color:#1565c0;border-bottom-color:#1565c0;font-weight:600;}
-.auth-tab:hover:not(.active){color:#666;}
 .auth-toggle{text-align:center;margin-top:16px;font-size:.85rem;color:#666;}
 .auth-toggle a{color:#1565c0;cursor:pointer;text-decoration:none;font-weight:600;}
 .auth-toggle a:hover{text-decoration:underline;}
@@ -281,7 +276,7 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 
 <!-- Notice -->
 <div class="notice">
-<p>①支持<strong>邮箱密码</strong>和<strong>手机号验证码</strong>两种登录方式；②<strong>管理员</strong>可删除任意房源、管理用户角色、清除自定义房源；③<strong>编辑者</strong>可发布房源、编辑房源信息、只能删除自己发布的房源；④<strong>访客</strong>（未登录）只能查看，不能修改；⑤所有房源标记均可拖拽移动位置，可点击"编辑"按钮修改信息；⑥离线模式（未配置Supabase）下所有功能正常，数据保存在本地浏览器。</p>
+<p>①支持<strong>邮箱密码</strong>登录方式，注册时需通过<strong>邮箱验证码</strong>验证，支持<strong>密码找回</strong>；②<strong>管理员</strong>可删除任意房源、管理用户角色、清除自定义房源；③<strong>编辑者</strong>可发布房源、编辑房源信息、只能删除自己发布的房源；④<strong>访客</strong>（未登录）只能查看，不能修改；⑤所有房源标记均可拖拽移动位置，可点击"编辑"按钮修改信息；⑥离线模式（未配置Supabase）下所有功能正常，数据保存在本地浏览器。</p>
 </div>
 
 <!-- Add Form Section -->
@@ -505,14 +500,15 @@ function updateUIForRole(){
   refreshAll();
 }
 
-// ===== 登录/注册/登出（邮箱 + 手机号）=====
-var authTab = 'email'; // email / phone
-var otpSent = false;
+// ===== 登录/注册/登出（邮箱）=====
+var emailOtpSent = false;
 
 function showAuthModal(mode){
   var modal = document.getElementById('authModal');
   modal.classList.add('show');
   modal.dataset.mode = mode;
+  emailOtpSent = false;
+  document.getElementById('authEmailOtpSection').style.display='none';
   if(!supabaseEnabled || !sb){
     // 离线模式：显示提示而不是alert
     var errEl = document.getElementById('authError');
@@ -528,16 +524,17 @@ function showAuthModal(mode){
     if(submitBtn) submitBtn.style.display = 'none';
     var toggleArea = document.querySelector('.auth-toggle');
     if(toggleArea) toggleArea.style.display = 'none';
+    var forgotLink = document.getElementById('authForgotLink');
+    if(forgotLink) forgotLink.style.display = 'none';
     return;
   }
   // 已配置：正常显示
   var errEl2 = document.getElementById('authError');
-  if(errEl2){ errEl2.style.background = ''; errEl2.style.padding = ''; errEl2.innerHTML = ''; }
+  if(errEl2){ errEl2.style.background = ''; errEl2.style.padding = ''; errEl2.style.color=''; errEl2.innerHTML = ''; }
   var submitBtn2 = document.getElementById('authSubmitBtn');
   if(submitBtn2) submitBtn2.style.display = '';
   var toggleArea2 = document.querySelector('.auth-toggle');
   if(toggleArea2) toggleArea2.style.display = '';
-  switchAuthTab('email');
   updateAuthModalText(mode);
 }
 function updateAuthModalText(mode){
@@ -545,47 +542,30 @@ function updateAuthModalText(mode){
   var submitBtn = document.getElementById('authSubmitBtn');
   var toggleLink = document.getElementById('authToggleLink');
   var toggleHint = document.getElementById('authToggleHint');
+  var forgotLink = document.getElementById('authForgotLink');
   if(mode==='login'){
     title.textContent='登录';
-    submitBtn.textContent=authTab==='phone'?'发送验证码':'登录';
+    submitBtn.textContent='登录';
     toggleHint.textContent='还没有账号？';
     toggleLink.textContent='注册新账号';
+    if(forgotLink) forgotLink.style.display='';
   } else {
     title.textContent='注册';
-    submitBtn.textContent=authTab==='phone'?'发送验证码':'注册';
+    submitBtn.textContent='注册';
     toggleHint.textContent='已有账号？';
     toggleLink.textContent='去登录';
+    if(forgotLink) forgotLink.style.display='none';
   }
-}
-function switchAuthTab(tab){
-  authTab = tab;
-  otpSent = false;
-  document.getElementById('authError').textContent='';
-  var emailSection = document.getElementById('authEmailSection');
-  var phoneSection = document.getElementById('authPhoneSection');
-  if(tab==='email'){
-    emailSection.style.display='';
-    phoneSection.style.display='none';
-    document.getElementById('authOtpSection').style.display='none';
-  } else {
-    emailSection.style.display='none';
-    phoneSection.style.display='';
-    document.getElementById('authOtpSection').style.display='none';
-  }
-  // 更新tab样式
-  document.querySelectorAll('.auth-tab').forEach(function(t){t.classList.remove('active');});
-  document.getElementById('tab-'+tab).classList.add('active');
-  var mode = document.getElementById('authModal').dataset.mode || 'login';
-  updateAuthModalText(mode);
 }
 function hideAuthModal(){
   document.getElementById('authModal').classList.remove('show');
   document.getElementById('authEmail').value='';
   document.getElementById('authPassword').value='';
-  document.getElementById('authPhone').value='';
-  document.getElementById('authOtp').value='';
-  document.getElementById('authError').textContent='';
-  otpSent = false;
+  document.getElementById('authEmailOtp').value='';
+  document.getElementById('authEmailOtpSection').style.display='none';
+  var errEl = document.getElementById('authError');
+  errEl.textContent=''; errEl.style.color=''; errEl.style.background=''; errEl.style.padding='';
+  emailOtpSent = false;
 }
 function toggleAuthMode(){
   var modal = document.getElementById('authModal');
@@ -598,17 +578,33 @@ function handleAuthSubmit(){
   var mode = document.getElementById('authModal').dataset.mode;
   var btn = document.getElementById('authSubmitBtn');
   btn.disabled=true; btn.textContent='处理中...';
-  if(authTab==='email'){
-    handleEmailAuth(mode, btn, errEl);
-  } else {
-    handlePhoneAuth(mode, btn, errEl);
-  }
+  handleEmailAuth(mode, btn, errEl);
 }
 function handleEmailAuth(mode, btn, errEl){
   var email = document.getElementById('authEmail').value.trim();
   var password = document.getElementById('authPassword').value;
   if(!email||!password){ errEl.textContent='请填写邮箱和密码'; btn.disabled=false; updateAuthModalText(mode); return; }
   if(password.length<6){ errEl.textContent='密码至少6位'; btn.disabled=false; updateAuthModalText(mode); return; }
+
+  // 如果已发送验证码且处于注册模式，验证OTP
+  if(emailOtpSent && mode==='register'){
+    var otp = document.getElementById('authEmailOtp').value.trim();
+    if(!otp){ errEl.textContent='请输入邮箱验证码'; btn.disabled=false; btn.textContent='验证并注册'; return; }
+    sb.auth.verifyOtp({email:email, token:otp, type:'signup'}).then(function(res){
+      if(res.error) throw res.error;
+      errEl.style.color='#2e7d32';
+      errEl.style.background='#e8f5e9';
+      errEl.style.padding='12px';
+      errEl.style.borderRadius='8px';
+      errEl.innerHTML='邮箱验证成功！正在登录...';
+      setTimeout(function(){ hideAuthModal(); btn.disabled=false; }, 1500);
+    }).catch(function(e){
+      errEl.textContent = e.message||'验证失败，请检查验证码是否正确';
+      btn.disabled=false; btn.textContent='验证并注册';
+    });
+    return;
+  }
+
   if(mode==='login'){
     sb.auth.signInWithPassword({email:email, password:password}).then(function(res){
       if(res.error) throw res.error;
@@ -621,50 +617,68 @@ function handleEmailAuth(mode, btn, errEl){
     sb.auth.signUp({email:email, password:password}).then(function(res){
       if(res.error) throw res.error;
       if(res.data.user && !res.data.session){
+        // 需要邮箱验证
+        emailOtpSent = true;
+        document.getElementById('authEmailOtpSection').style.display='';
+        btn.textContent='验证并注册';
+        btn.disabled=false;
         errEl.style.color='#1565c0';
-        errEl.textContent = '注册成功！请检查邮箱确认邮件后登录。';
+        errEl.style.background='#e3f2fd';
+        errEl.style.padding='12px';
+        errEl.style.borderRadius='8px';
+        errEl.innerHTML='<strong>注册成功！</strong>确认邮件已发送至 <strong>'+email+'</strong><br><br>'+
+          '<strong>方式一：</strong>点击邮件中的确认链接，完成后返回登录<br>'+
+          '<strong>方式二：</strong>若邮件中包含6位验证码，请在下方输入<br>'+
+          '<span style="font-size:.8rem;color:#666;">（提示：配置自定义SMTP后可在邮件模板中使用 {{ .Token }} 显示验证码）</span>';
       } else {
+        // 无需验证，直接登录成功
         hideAuthModal();
       }
-      btn.disabled=false; updateAuthModalText(mode);
     }).catch(function(e){
       errEl.textContent = e.message||'注册失败';
       btn.disabled=false; updateAuthModalText(mode);
     });
   }
 }
-function handlePhoneAuth(mode, btn, errEl){
-  var phone = document.getElementById('authPhone').value.trim();
-  if(!phone){ errEl.textContent='请输入手机号'; btn.disabled=false; updateAuthModalText(mode); return; }
-  // 确保手机号带+86前缀
-  if(!phone.startsWith('+')){ phone = '+86'+phone; }
-  if(!otpSent){
-    // 发送验证码
-    sb.auth.signInWithOtp({phone:phone}).then(function(res){
-      if(res.error) throw res.error;
-      otpSent = true;
-      document.getElementById('authOtpSection').style.display='';
-      btn.textContent='验证并登录';
-      btn.disabled=false;
-      errEl.style.color='#1565c0';
-      errEl.textContent='验证码已发送至'+phone;
-    }).catch(function(e){
-      errEl.textContent = e.message||'发送验证码失败';
-      btn.disabled=false; updateAuthModalText(mode);
-    });
-  } else {
-    // 验证OTP
-    var otp = document.getElementById('authOtp').value.trim();
-    if(!otp){ errEl.textContent='请输入验证码'; btn.disabled=false; btn.textContent='验证并登录'; return; }
-    sb.auth.verifyOtp({phone:phone, token:otp, type:'sms'}).then(function(res){
-      if(res.error) throw res.error;
-      hideAuthModal(); btn.disabled=false;
-    }).catch(function(e){
-      errEl.textContent = e.message||'验证失败';
-      btn.disabled=false; btn.textContent='验证并登录';
-    });
-  }
+
+// ===== 密码重置/找回 =====
+function showResetPassword(){
+  document.getElementById('authModal').classList.remove('show');
+  var modal = document.getElementById('resetModal');
+  modal.classList.add('show');
+  document.getElementById('resetEmail').value='';
+  var errEl = document.getElementById('resetError');
+  errEl.textContent=''; errEl.style.color=''; errEl.style.background=''; errEl.style.padding='';
+  var btn = document.getElementById('resetSubmitBtn');
+  btn.textContent='发送重置链接'; btn.disabled=false;
 }
+function hideResetModal(){
+  document.getElementById('resetModal').classList.remove('show');
+  showAuthModal('login');
+}
+function handleResetPassword(){
+  var email = document.getElementById('resetEmail').value.trim();
+  var errEl = document.getElementById('resetError');
+  var btn = document.getElementById('resetSubmitBtn');
+  errEl.textContent=''; errEl.style.color=''; errEl.style.background=''; errEl.style.padding='';
+  if(!email){ errEl.textContent='请输入邮箱地址'; return; }
+  btn.disabled=true; btn.textContent='发送中...';
+  sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.href.split('?')[0]
+  }).then(function(res){
+    if(res.error) throw res.error;
+    errEl.style.color='#2e7d32';
+    errEl.style.background='#e8f5e9';
+    errEl.style.padding='12px';
+    errEl.style.borderRadius='8px';
+    errEl.innerHTML='密码重置链接已发送至 <strong>'+email+'</strong><br>请检查邮箱并点击链接重置密码。';
+    btn.textContent='已发送'; btn.disabled=false;
+  }).catch(function(e){
+    errEl.textContent = e.message||'发送失败，请检查邮箱是否正确';
+    btn.textContent='发送重置链接'; btn.disabled=false;
+  });
+}
+
 function signOutUser(){
   sb.auth.signOut().then(function(){
     currentUser = null;
@@ -1703,11 +1717,6 @@ updateSyncStatus();
 <div class="auth-modal" id="authModal" data-mode="login">
   <div class="auth-modal-box">
     <h3 id="authTitle">登录</h3>
-    <!-- 登录方式切换Tab -->
-    <div class="auth-tabs">
-      <div class="auth-tab active" id="tab-email" onclick="switchAuthTab('email')">邮箱登录</div>
-      <div class="auth-tab" id="tab-phone" onclick="switchAuthTab('phone')">手机号登录</div>
-    </div>
     <!-- 邮箱登录区域 -->
     <div id="authEmailSection">
       <div class="form-group">
@@ -1719,18 +1728,11 @@ updateSyncStatus();
         <input type="password" id="authPassword" placeholder="请输入密码（至少6位）" onkeydown="if(event.key==='Enter')handleAuthSubmit()">
       </div>
     </div>
-    <!-- 手机号登录区域 -->
-    <div id="authPhoneSection" style="display:none;">
+    <!-- 邮箱验证码区域（注册后显示） -->
+    <div id="authEmailOtpSection" style="display:none;">
       <div class="form-group">
-        <label>手机号</label>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="background:#f5f5f5;padding:10px 12px;border-radius:8px;font-size:.9rem;color:#666;">+86</span>
-          <input type="tel" id="authPhone" placeholder="请输入手机号" style="flex:1;" onkeydown="if(event.key==='Enter')handleAuthSubmit()">
-        </div>
-      </div>
-      <div class="form-group" id="authOtpSection" style="display:none;">
-        <label>验证码</label>
-        <input type="text" id="authOtp" placeholder="请输入6位验证码" maxlength="6" onkeydown="if(event.key==='Enter')handleAuthSubmit()">
+        <label>邮箱验证码</label>
+        <input type="text" id="authEmailOtp" placeholder="请输入邮箱收到的6位验证码" maxlength="6" onkeydown="if(event.key==='Enter')handleAuthSubmit()">
       </div>
     </div>
     <div class="auth-error" id="authError"></div>
@@ -1738,6 +1740,25 @@ updateSyncStatus();
     <div class="auth-toggle">
       <span id="authToggleHint">还没有账号？</span>
       <a id="authToggleLink" onclick="toggleAuthMode()">注册新账号</a>
+    </div>
+    <div id="authForgotLink" style="text-align:center;margin-top:8px;font-size:.82rem;">
+      <a onclick="showResetPassword()" style="color:#1565c0;cursor:pointer;text-decoration:none;">忘记密码？</a>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 密码重置模态框 ===== -->
+<div class="auth-modal" id="resetModal">
+  <div class="auth-modal-box">
+    <h3>重置密码</h3>
+    <div class="form-group">
+      <label>注册邮箱</label>
+      <input type="email" id="resetEmail" placeholder="请输入注册时的邮箱地址" onkeydown="if(event.key==='Enter')handleResetPassword()">
+    </div>
+    <div class="auth-error" id="resetError"></div>
+    <button class="auth-submit" id="resetSubmitBtn" onclick="handleResetPassword()">发送重置链接</button>
+    <div class="auth-toggle">
+      <a onclick="hideResetModal()" style="color:#1565c0;cursor:pointer;text-decoration:none;">返回登录</a>
     </div>
   </div>
 </div>
