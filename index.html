@@ -2,7 +2,7 @@
 <html lang="zh-CN" data-theme="light" class=""><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>上海租房信息汇总（在线协作版）</title>
+<title>上海租房信息汇总（Supabase版）</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
@@ -144,13 +144,65 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 .sync-dot.online{background:#4caf50;box-shadow:0 0 6px #4caf50;}
 .sync-dot.offline{background:#ff9800;}
 .sync-dot.unconfigured{background:#9e9e9e;}
+/* ===== 用户认证UI ===== */
+.auth-bar{position:absolute;top:20px;right:20px;display:flex;align-items:center;gap:12px;z-index:100;}
+#loginBtn{background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);padding:6px 18px;border-radius:20px;cursor:pointer;font-size:.85rem;transition:all .2s;}
+#loginBtn:hover{background:rgba(255,255,255,.35);}
+#userInfo{display:none;align-items:center;gap:10px;background:rgba(255,255,255,.15);padding:4px 8px 4px 4px;border-radius:20px;}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:#fff;color:#1565c0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;}
+.user-detail{display:flex;flex-direction:column;gap:2px;}
+.user-email{font-size:.75rem;color:#fff;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.role-badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:.7rem;color:#fff;font-weight:600;width:fit-content;}
+.logout-btn{background:rgba(255,255,255,.2);color:#fff;border:none;padding:4px 12px;border-radius:12px;cursor:pointer;font-size:.78rem;transition:all .2s;}
+.logout-btn:hover{background:rgba(255,255,255,.4);}
+#adminPanelBtn{display:none;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);padding:6px 14px;border-radius:20px;cursor:pointer;font-size:.82rem;transition:all .2s;}
+#adminPanelBtn:hover{background:rgba(255,255,255,.35);}
+/* 登录注册模态框 */
+.auth-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:2000;align-items:center;justify-content:center;}
+.auth-modal.show{display:flex;}
+.auth-modal-box{background:#fff;border-radius:12px;padding:32px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+.auth-modal-box h3{color:#0d47a1;margin-bottom:20px;text-align:center;font-size:1.3rem;}
+.auth-modal-box .form-group{margin-bottom:16px;}
+.auth-modal-box label{display:block;margin-bottom:6px;font-size:.85rem;color:#555;font-weight:600;}
+.auth-modal-box input{width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-size:.9rem;outline:none;transition:border .2s;}
+.auth-modal-box input:focus{border-color:#1565c0;}
+.auth-error{color:#e53935;font-size:.82rem;min-height:20px;margin-bottom:10px;}
+.auth-submit{width:100%;padding:12px;background:#1565c0;color:#fff;border:none;border-radius:8px;font-size:1rem;cursor:pointer;transition:background .2s;margin-top:8px;}
+.auth-submit:hover{background:#0d47a1;}
+.auth-submit:disabled{background:#999;cursor:not-allowed;}
+/* 登录方式Tab */
+.auth-tabs{display:flex;margin-bottom:16px;border-bottom:2px solid #e0e0e0;}
+.auth-tab{flex:1;text-align:center;padding:10px 0;cursor:pointer;font-size:.88rem;color:#999;transition:all .2s;border-bottom:2px solid transparent;margin-bottom:-2px;}
+.auth-tab.active{color:#1565c0;border-bottom-color:#1565c0;font-weight:600;}
+.auth-tab:hover:not(.active){color:#666;}
+.auth-toggle{text-align:center;margin-top:16px;font-size:.85rem;color:#666;}
+.auth-toggle a{color:#1565c0;cursor:pointer;text-decoration:none;font-weight:600;}
+.auth-toggle a:hover{text-decoration:underline;}
+/* 管理员面板 */
+.admin-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:2000;align-items:center;justify-content:center;}
+.admin-modal.show{display:flex;}
+.admin-modal-box{background:#fff;border-radius:12px;padding:28px;width:600px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+.admin-modal-box h3{color:#0d47a1;margin-bottom:16px;font-size:1.2rem;}
+.user-mgmt-table{width:100%;border-collapse:collapse;font-size:.85rem;}
+.user-mgmt-table th{background:#e3f2fd;padding:10px;text-align:left;border-bottom:2px solid #1565c0;color:#0d47a1;}
+.user-mgmt-table td{padding:10px;border-bottom:1px solid #eee;}
+.user-mgmt-table tr:hover td{background:#f5f9ff;}
+.admin-close{float:right;background:#f5f5f5;color:#666;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:.85rem;}
+.admin-close:hover{background:#e0e0e0;}
+/* 离线模式提示 */
+.offline-hint{background:#fff3e0;border:1px solid #ffb74d;border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:.82rem;color:#e65100;display:none;}
+.offline-hint.show{display:block;}
 </style>
 </head>
 <body>
 <header>
-<div class="sync-status" id="syncStatus"><span class="sync-dot unconfigured" id="syncDot"></span><span id="syncText">未配置</span></div>
 <h1>上海租房信息汇总</h1>
 <p>虹桥区域 · 市域机场线 · 南汇支线 · 公租房/保租房&nbsp;</p>
+<div class="auth-bar" style="position:absolute;top:20px;right:20px;display:flex;align-items:center;gap:12px;z-index:100;">
+  <button id="loginBtn" onclick="showAuthModal('login')" style="display:none;">登录 / 注册</button>
+  <div id="userInfo" style="display:none;"></div>
+  <button id="adminPanelBtn" onclick="showAdminPanel()">用户管理</button>
+</div>
 </header>
 <div class="container">
 <!-- Stats -->
@@ -184,13 +236,7 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 <div class="legend-item"><span class="legend-dot" style="background:#f57c00;"></span>公租房/保租房</div>
 <div class="legend-item"><span class="legend-dot" style="background:#546e7a;"></span>地铁/市域线站点</div>
 </div>
-<div class="map-toolbar" id="mapToolbar">
-<button id="toolAddMarker" onclick="toggleAddMarker()">添加标记</button>
-<button id="toolDrawRoute" onclick="toggleDrawRoute()">绘制路线</button>
-<span class="divider"></span>
-<button id="toolDelete" onclick="toggleDeleteMode()">删除模式</button>
-<button onclick="clearAllDrawings()">清空绘制</button>
-</div>
+
 </div>
 </div>
 
@@ -235,7 +281,7 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 
 <!-- Notice -->
 <div class="notice">
-<p>①点击下方"添加房源"展开录入表单，填写信息后可通过"地址定位"自动获取坐标，或在地图上点击拾取坐标；②手动录入的房源按区域类型显示对应颜色，标记带★号，支持拖拽移动位置；③所有房源标记均可拖拽移动位置，也可点击"编辑"按钮修改坐标、地址、地铁站等信息，修改后的原始房源会显示"已修改"标签；④原始房源也可删除，删除后可在"恢复已删除"中恢复；⑤所有操作自动保存在浏览器本地，关闭页面后不会丢失。</p>
+<p>①支持<strong>邮箱密码</strong>和<strong>手机号验证码</strong>两种登录方式；②<strong>管理员</strong>可删除任意房源、管理用户角色、清除自定义房源；③<strong>编辑者</strong>可发布房源、编辑房源信息、只能删除自己发布的房源；④<strong>访客</strong>（未登录）只能查看，不能修改；⑤所有房源标记均可拖拽移动位置，可点击"编辑"按钮修改信息；⑥离线模式（未配置Supabase）下所有功能正常，数据保存在本地浏览器。</p>
 </div>
 
 <!-- Add Form Section -->
@@ -341,22 +387,332 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 </footer>
 
 
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-// ===== Firebase 配置（请替换为你自己的项目配置）=====
-var firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
-  projectId: "YOUR_PROJECT_ID",
-  appId: "YOUR_APP_ID"
+// ===== Supabase 配置（请替换为你自己的项目配置）=====
+var supabaseConfig = {
+  url: "https://zufangzhinan.supabase.co",
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 };
-var firebaseEnabled = firebaseConfig.apiKey !== "YOUR_API_KEY";
-var db = null;
-if(firebaseEnabled){
-  firebase.initializeApp(firebaseConfig);
-  db = firebase.database();
+var supabaseEnabled = supabaseConfig.url !== "https://YOUR_PROJECT.supabase.co";
+var sb = null;
+var currentUser = null;
+var userRole = "visitor"; // admin / editor / visitor
+
+if(supabaseEnabled){
+  sb = supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey);
+  // 监听登录状态
+  sb.auth.onAuthStateChange(function(event, session){
+    if(session && session.user){
+      currentUser = session.user;
+      // 获取用户角色
+      sb.from('profiles').select('role, email, phone, nickname').eq('id', session.user.id).single()
+      .then(function(res){
+        if(!res.data){
+          // 新用户默认为editor
+          sb.from('profiles').insert({
+            id: session.user.id,
+            email: session.user.email || session.user.phone || '',
+            phone: session.user.phone || '',
+            role: 'editor',
+            created_at: new Date().toISOString()
+          }).then(function(){
+            userRole = 'editor';
+            updateUIForRole();
+            updateSyncStatus();
+          });
+        } else {
+          userRole = res.data.role || 'editor';
+          updateUIForRole();
+          updateSyncStatus();
+        }
+      }).catch(function(e){
+        console.error('获取用户角色失败:', e);
+        userRole = 'visitor';
+        updateUIForRole();
+      });
+    } else {
+      currentUser = null;
+      userRole = 'visitor';
+      updateUIForRole();
+      updateSyncStatus();
+    }
+  });
+}
+
+// ===== 角色权限检查 =====
+function canEdit(){ return userRole==='admin' || userRole==='editor'; }
+function canDelete(id){
+  if(userRole==='admin') return true;
+  if(userRole==='editor'){
+    if(!supabaseEnabled) return true; // 离线模式允许删除所有自定义房源
+    // 编辑者只能删除自己发布的自定义房源
+    var listing = getOriginalListing(id);
+    return listing && listing.id>1000 && listing.createdBy === (currentUser?currentUser.id:'');
+  }
+  return false;
+}
+function isAdmin(){ return userRole==='admin'; }
+
+// ===== 更新UI显示 =====
+function updateUIForRole(){
+  var toggleFormBtn = document.getElementById('toggleForm');
+  var formToggle = document.getElementById('formToggle');
+  var exportBtn = document.getElementById('exportData');
+  var clearBtn = document.getElementById('clearAllCustom');
+  var restoreBtn = document.querySelector('.restore-btn');
+  var userPanel = document.getElementById('userPanel');
+  var loginBtn = document.getElementById('loginBtn');
+  var userInfo = document.getElementById('userInfo');
+  var adminPanel = document.getElementById('adminPanelBtn');
+
+  if(canEdit()){
+    if(toggleFormBtn) toggleFormBtn.style.display='';
+    if(formToggle) formToggle.style.display='';
+    if(clearBtn && (isAdmin() || !supabaseEnabled)) clearBtn.style.display='';
+    else if(clearBtn) clearBtn.style.display='none';
+    if(restoreBtn) restoreBtn.style.display='';
+  } else {
+    if(toggleFormBtn) toggleFormBtn.style.display='none';
+    if(formToggle) formToggle.style.display='none';
+    if(clearBtn) clearBtn.style.display='none';
+    if(restoreBtn) restoreBtn.style.display='none';
+  }
+
+  // 登录状态显示
+  if(currentUser){
+    if(loginBtn) loginBtn.style.display='none';
+    if(userInfo){
+      userInfo.style.display='flex';
+      var roleLabel = userRole==='admin'?'管理员':(userRole==='editor'?'编辑者':'访客');
+      var roleColor = userRole==='admin'?'#e53935':(userRole==='editor'?'#1565c0':'#999');
+      var displayName = currentUser.email || currentUser.phone || '用户';
+      userInfo.innerHTML = '<span class="user-avatar">'+displayName.charAt(0).toUpperCase()+'</span>'+
+        '<div class="user-detail"><div class="user-email">'+displayName+'</div>'+
+        '<span class="role-badge" style="background:'+roleColor+'">'+roleLabel+'</span></div>'+
+        '<button class="logout-btn" onclick="signOutUser()">退出</button>';
+    }
+    if(adminPanel) adminPanel.style.display = isAdmin()?'':'none';
+  } else {
+    if(loginBtn) loginBtn.style.display='';
+    if(userInfo) userInfo.style.display='none';
+    if(userInfo) userInfo.innerHTML='';
+    if(adminPanel) adminPanel.style.display='none';
+  }
+
+  // 刷新表格以更新按钮显示
+  refreshAll();
+}
+
+// ===== 登录/注册/登出（邮箱 + 手机号）=====
+var authTab = 'email'; // email / phone
+var otpSent = false;
+
+function showAuthModal(mode){
+  var modal = document.getElementById('authModal');
+  modal.classList.add('show');
+  modal.dataset.mode = mode;
+  if(!supabaseEnabled || !sb){
+    // 离线模式：显示提示而不是alert
+    var errEl = document.getElementById('authError');
+    if(errEl){
+      errEl.style.color = '#e65100';
+      errEl.style.background = '#fff3e0';
+      errEl.style.padding = '12px';
+      errEl.style.borderRadius = '8px';
+      errEl.style.marginBottom = '12px';
+      errEl.innerHTML = '<strong>当前为离线模式</strong><br>要启用登录功能，请配置 Supabase：<br>1. 访问 supabase.com/dashboard 创建项目<br>2. 执行 supabase_database.sql 脚本<br>3. 在本文件中填入 supabaseConfig<br><br>详见 Supabase配置指南.html';
+    }
+    var submitBtn = document.getElementById('authSubmitBtn');
+    if(submitBtn) submitBtn.style.display = 'none';
+    var toggleArea = document.querySelector('.auth-toggle');
+    if(toggleArea) toggleArea.style.display = 'none';
+    return;
+  }
+  // 已配置：正常显示
+  var errEl2 = document.getElementById('authError');
+  if(errEl2){ errEl2.style.background = ''; errEl2.style.padding = ''; errEl2.innerHTML = ''; }
+  var submitBtn2 = document.getElementById('authSubmitBtn');
+  if(submitBtn2) submitBtn2.style.display = '';
+  var toggleArea2 = document.querySelector('.auth-toggle');
+  if(toggleArea2) toggleArea2.style.display = '';
+  switchAuthTab('email');
+  updateAuthModalText(mode);
+}
+function updateAuthModalText(mode){
+  var title = document.getElementById('authTitle');
+  var submitBtn = document.getElementById('authSubmitBtn');
+  var toggleLink = document.getElementById('authToggleLink');
+  var toggleHint = document.getElementById('authToggleHint');
+  if(mode==='login'){
+    title.textContent='登录';
+    submitBtn.textContent=authTab==='phone'?'发送验证码':'登录';
+    toggleHint.textContent='还没有账号？';
+    toggleLink.textContent='注册新账号';
+  } else {
+    title.textContent='注册';
+    submitBtn.textContent=authTab==='phone'?'发送验证码':'注册';
+    toggleHint.textContent='已有账号？';
+    toggleLink.textContent='去登录';
+  }
+}
+function switchAuthTab(tab){
+  authTab = tab;
+  otpSent = false;
+  document.getElementById('authError').textContent='';
+  var emailSection = document.getElementById('authEmailSection');
+  var phoneSection = document.getElementById('authPhoneSection');
+  if(tab==='email'){
+    emailSection.style.display='';
+    phoneSection.style.display='none';
+    document.getElementById('authOtpSection').style.display='none';
+  } else {
+    emailSection.style.display='none';
+    phoneSection.style.display='';
+    document.getElementById('authOtpSection').style.display='none';
+  }
+  // 更新tab样式
+  document.querySelectorAll('.auth-tab').forEach(function(t){t.classList.remove('active');});
+  document.getElementById('tab-'+tab).classList.add('active');
+  var mode = document.getElementById('authModal').dataset.mode || 'login';
+  updateAuthModalText(mode);
+}
+function hideAuthModal(){
+  document.getElementById('authModal').classList.remove('show');
+  document.getElementById('authEmail').value='';
+  document.getElementById('authPassword').value='';
+  document.getElementById('authPhone').value='';
+  document.getElementById('authOtp').value='';
+  document.getElementById('authError').textContent='';
+  otpSent = false;
+}
+function toggleAuthMode(){
+  var modal = document.getElementById('authModal');
+  var newMode = modal.dataset.mode==='login'?'register':'login';
+  showAuthModal(newMode);
+}
+function handleAuthSubmit(){
+  var errEl = document.getElementById('authError');
+  errEl.textContent='';
+  var mode = document.getElementById('authModal').dataset.mode;
+  var btn = document.getElementById('authSubmitBtn');
+  btn.disabled=true; btn.textContent='处理中...';
+  if(authTab==='email'){
+    handleEmailAuth(mode, btn, errEl);
+  } else {
+    handlePhoneAuth(mode, btn, errEl);
+  }
+}
+function handleEmailAuth(mode, btn, errEl){
+  var email = document.getElementById('authEmail').value.trim();
+  var password = document.getElementById('authPassword').value;
+  if(!email||!password){ errEl.textContent='请填写邮箱和密码'; btn.disabled=false; updateAuthModalText(mode); return; }
+  if(password.length<6){ errEl.textContent='密码至少6位'; btn.disabled=false; updateAuthModalText(mode); return; }
+  if(mode==='login'){
+    sb.auth.signInWithPassword({email:email, password:password}).then(function(res){
+      if(res.error) throw res.error;
+      hideAuthModal(); btn.disabled=false;
+    }).catch(function(e){
+      errEl.textContent = e.message||'登录失败';
+      btn.disabled=false; updateAuthModalText(mode);
+    });
+  } else {
+    sb.auth.signUp({email:email, password:password}).then(function(res){
+      if(res.error) throw res.error;
+      if(res.data.user && !res.data.session){
+        errEl.style.color='#1565c0';
+        errEl.textContent = '注册成功！请检查邮箱确认邮件后登录。';
+      } else {
+        hideAuthModal();
+      }
+      btn.disabled=false; updateAuthModalText(mode);
+    }).catch(function(e){
+      errEl.textContent = e.message||'注册失败';
+      btn.disabled=false; updateAuthModalText(mode);
+    });
+  }
+}
+function handlePhoneAuth(mode, btn, errEl){
+  var phone = document.getElementById('authPhone').value.trim();
+  if(!phone){ errEl.textContent='请输入手机号'; btn.disabled=false; updateAuthModalText(mode); return; }
+  // 确保手机号带+86前缀
+  if(!phone.startsWith('+')){ phone = '+86'+phone; }
+  if(!otpSent){
+    // 发送验证码
+    sb.auth.signInWithOtp({phone:phone}).then(function(res){
+      if(res.error) throw res.error;
+      otpSent = true;
+      document.getElementById('authOtpSection').style.display='';
+      btn.textContent='验证并登录';
+      btn.disabled=false;
+      errEl.style.color='#1565c0';
+      errEl.textContent='验证码已发送至'+phone;
+    }).catch(function(e){
+      errEl.textContent = e.message||'发送验证码失败';
+      btn.disabled=false; updateAuthModalText(mode);
+    });
+  } else {
+    // 验证OTP
+    var otp = document.getElementById('authOtp').value.trim();
+    if(!otp){ errEl.textContent='请输入验证码'; btn.disabled=false; btn.textContent='验证并登录'; return; }
+    sb.auth.verifyOtp({phone:phone, token:otp, type:'sms'}).then(function(res){
+      if(res.error) throw res.error;
+      hideAuthModal(); btn.disabled=false;
+    }).catch(function(e){
+      errEl.textContent = e.message||'验证失败';
+      btn.disabled=false; btn.textContent='验证并登录';
+    });
+  }
+}
+function signOutUser(){
+  sb.auth.signOut().then(function(){
+    currentUser = null;
+    userRole = 'visitor';
+    updateUIForRole();
+  });
+}
+
+// ===== 管理员：用户管理 =====
+function showAdminPanel(){
+  if(!isAdmin())return;
+  var panel = document.getElementById('adminPanelModal');
+  panel.classList.add('show');
+  loadUsersList();
+}
+function hideAdminPanel(){
+  document.getElementById('adminPanelModal').classList.remove('show');
+}
+function loadUsersList(){
+  var container = document.getElementById('usersListContainer');
+  container.innerHTML='<p style="text-align:center;color:#999;padding:20px;">加载中...</p>';
+  sb.from('profiles').select('*').order('created_at',{ascending:false}).then(function(res){
+    if(res.error){ container.innerHTML='<p style="color:#e53935;">加载失败: '+res.error.message+'</p>'; return; }
+    var users = res.data || [];
+    var html='<table class="user-mgmt-table"><thead><tr><th>邮箱/手机</th><th>当前角色</th><th>操作</th></tr></thead><tbody>';
+    users.forEach(function(u){
+      var roleColor = u.role==='admin'?'#e53935':(u.role==='editor'?'#1565c0':'#999');
+      var displayName = u.email || u.phone || u.id.substring(0,8);
+      html+='<tr><td>'+displayName+'</td>'+
+        '<td><span class="role-badge" style="background:'+roleColor+'">'+(u.role==='admin'?'管理员':(u.role==='editor'?'编辑者':'访客'))+'</span></td>'+
+        '<td><select onchange="changeUserRole(\''+u.id+'\',this.value)" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;">'+
+        '<option value="admin"'+(u.role==='admin'?' selected':'')+'>管理员</option>'+
+        '<option value="editor"'+(u.role==='editor'?' selected':'')+'>编辑者</option>'+
+        '<option value="visitor"'+(u.role==='visitor'?' selected':'')+'>访客</option>'+
+        '</select></td></tr>';
+    });
+    html+='</tbody></table>';
+    container.innerHTML=html;
+  });
+}
+function changeUserRole(uid,newRole){
+  sb.from('profiles').update({role:newRole}).eq('id',uid).then(function(){
+    loadUsersList();
+    if(currentUser && currentUser.id===uid){
+      userRole = newRole;
+      updateUIForRole();
+    }
+  });
 }
 // ==================== Original Listings Data ====================
 var originalListings = [
@@ -396,21 +752,22 @@ function loadCustomListings(){
   try{var d=localStorage.getItem('sh_rental_custom');return d?JSON.parse(d):[];}catch(e){return[];}
 }
 function saveCustomListings(){
-  if(firebaseEnabled){
-    db.ref('customListings').set(customListings);
-  } else {
-    try{localStorage.setItem('sh_rental_custom',JSON.stringify(customListings));}catch(e){}
+  if(supabaseEnabled && sb){
+    // Supabase: upsert all custom listings
+    sb.from('custom_listings').upsert(customListings.map(function(l){
+      return {id:l.id, data:l, created_by:l.createdBy||null};
+    })).then(function(){});
   }
+  try{localStorage.setItem('sh_rental_custom',JSON.stringify(customListings));}catch(e){}
 }
 function loadDeletedIds(){
   try{var d=localStorage.getItem('sh_rental_deleted');return d?JSON.parse(d):[];}catch(e){return[];}
 }
 function saveDeletedIds(){
-  if(firebaseEnabled){
-    db.ref('deletedIds').set(deletedIds);
-  } else {
-    try{localStorage.setItem('sh_rental_deleted',JSON.stringify(deletedIds));}catch(e){}
+  if(supabaseEnabled && sb){
+    sb.from('app_state').upsert({key:'deletedIds', value:deletedIds, updated_at:new Date().toISOString()}).then(function(){});
   }
+  try{localStorage.setItem('sh_rental_deleted',JSON.stringify(deletedIds));}catch(e){}
 }
 
 var customListings = loadCustomListings();
@@ -426,30 +783,62 @@ function loadOverrides(){
   try{var d=localStorage.getItem('sh_rental_overrides');return d?JSON.parse(d):{};}catch(e){return{};}
 }
 function saveOverrides(){
-  if(firebaseEnabled){
-    db.ref('overrides').set(listingOverrides);
-  } else {
-    try{localStorage.setItem('sh_rental_overrides',JSON.stringify(listingOverrides));}catch(e){}
+  if(supabaseEnabled && sb){
+    sb.from('app_state').upsert({key:'overrides', value:listingOverrides, updated_at:new Date().toISOString()}).then(function(){});
   }
+  try{localStorage.setItem('sh_rental_overrides',JSON.stringify(listingOverrides));}catch(e){}
 }
 var listingOverrides = loadOverrides();
 
-// ===== Firebase Real-time Listeners =====
-if(firebaseEnabled){
-  db.ref('customListings').on('value', function(snapshot){
-    var val = snapshot.val();
-    customListings = Array.isArray(val) ? val : (val ? Object.values(val) : []);
-    if(typeof refreshAll === 'function') refreshAll();
+// ===== Supabase Real-time Listeners + Cloud Data Load =====
+if(supabaseEnabled && sb){
+  // 从云端加载自定义房源
+  sb.from('custom_listings').select('data').then(function(res){
+    if(res.data && res.data.length){
+      customListings = res.data.map(function(r){return r.data;});
+      nextCustomId = (function(){
+        var max=1000;
+        customListings.forEach(function(l){if(l.id>max)max=l.id;});
+        return max+1;
+      })();
+      if(typeof refreshAll==='function') refreshAll();
+    }
   });
-  db.ref('deletedIds').on('value', function(snapshot){
-    var val = snapshot.val();
-    deletedIds = Array.isArray(val) ? val : (val ? Object.keys(val).map(Number) : []);
-    if(typeof refreshAll === 'function') refreshAll();
+  // 从云端加载删除列表和覆盖
+  sb.from('app_state').select('key,value').in('key',['deletedIds','overrides']).then(function(res){
+    if(res.data){
+      res.data.forEach(function(row){
+        if(row.key==='deletedIds'){ deletedIds = row.value||[]; }
+        if(row.key==='overrides'){ listingOverrides = row.value||{}; }
+      });
+      if(typeof refreshAll==='function') refreshAll();
+    }
   });
-  db.ref('overrides').on('value', function(snapshot){
-    listingOverrides = snapshot.val() || {};
-    if(typeof refreshAll === 'function') refreshAll();
-  });
+  // 实时监听自定义房源变更
+  sb.channel('custom_listings_changes')
+    .on('postgres_changes',{event:'*',schema:'public',table:'custom_listings'},function(payload){
+      sb.from('custom_listings').select('data').then(function(res){
+        if(res.data){
+          customListings = res.data.map(function(r){return r.data;});
+          if(typeof refreshAll==='function') refreshAll();
+        }
+      });
+    }).subscribe();
+  // 实时监听app_state变更
+  sb.channel('app_state_changes')
+    .on('postgres_changes',{event:'*',schema:'public',table:'app_state'},function(payload){
+      if(payload.new && payload.new.key==='deletedIds'){ deletedIds = payload.new.value||[]; }
+      if(payload.new && payload.new.key==='overrides'){ listingOverrides = payload.new.value||{}; }
+      if(typeof refreshAll==='function') refreshAll();
+    }).subscribe();
+  // 实时监听profiles变更（用户角色变更）
+  sb.channel('profiles_changes')
+    .on('postgres_changes',{event:'*',schema:'public',table:'profiles'},function(payload){
+      if(currentUser && payload.new && payload.new.id===currentUser.id){
+        userRole = payload.new.role || 'editor';
+        updateUIForRole();
+      }
+    }).subscribe();
 }
 var editingId = null;
 
@@ -607,6 +996,14 @@ function renderTable(data){
     var featuresHtml=(l.features||[]).map(function(f){return '<span class="feature-badge">'+f+'</span>';}).join('');
     var facilitiesHtml=(l.facilities||[]).join('、');
     var linkHtml=l.url?'<a href="'+l.url+'" target="_blank" class="'+platformClass+'">查看</a>':'-';
+    // 根据角色显示操作按钮
+    var editBtnHtml = canEdit() ? '<button class="edit-btn" onclick="openEditModal('+l.id+')">编辑</button>' : '';
+    var delBtnHtml = canDelete(l.id) ? '<button class="del-btn" data-id="'+l.id+'" onclick="deleteListing('+l.id+')">删除</button>' : '';
+    // 显示发布者信息（管理员可见）
+    var creatorHtml = '';
+    if(isAdmin() && l.createdBy){
+      creatorHtml = '<div style="font-size:.7rem;color:#999;margin-top:2px;">发布者：'+(l.createdByEmail||l.createdBy)+'</div>';
+    }
     tr.innerHTML=
       '<td>'+(idx+1)+'</td>'+
       '<td>'+l.area+'</td>'+
@@ -618,12 +1015,12 @@ function renderTable(data){
       '<td>'+l.address+'</td>'+
       '<td>'+l.subway+'</td>'+
       '<td>'+l.subwayDist+'</td>'+
-      '<td>'+l.contact+'<br><span style="font-size:.75rem;color:#999;">'+(l.company||'')+'</span></td>'+
+      '<td>'+l.contact+'<br><span style="font-size:.75rem;color:#999;">'+(l.company||'')+'</span>'+creatorHtml+'</td>'+
       '<td><span class="'+platformClass+'">'+l.platform+'</span></td>'+
       '<td style="max-width:180px;">'+facilitiesHtml+'</td>'+
       '<td style="max-width:200px;">'+featuresHtml+'</td>'+
       '<td>'+linkHtml+'</td>'+
-      '<td><button class="edit-btn" onclick="openEditModal('+l.id+')">编辑</button><button class="del-btn" data-id="'+l.id+'" onclick="deleteListing('+l.id+')">删除</button></td>';
+      '<td>'+editBtnHtml+delBtnHtml+'</td>';
     tbody.appendChild(tr);
   });
   if(list.length===0){
@@ -761,6 +1158,7 @@ map.on('click',function(e){
 
 // ==================== Submit Listing ====================
 function submitListing(){
+  if(!canEdit()){ alert('请先登录后再添加房源'); return; }
   var name=document.getElementById('f_name').value.trim();
   var price=document.getElementById('f_price').value.trim();
   if(!name){alert('请输入房源名称');return;}
@@ -801,7 +1199,9 @@ function submitListing(){
     payment:document.getElementById('f_payment').value.trim()||'-',
     lat:parseFloat(document.getElementById('f_lat').value)||31.10,
     lng:parseFloat(document.getElementById('f_lng').value)||121.45,
-    notes:document.getElementById('f_notes').value.trim()||''
+    notes:document.getElementById('f_notes').value.trim()||'',
+    createdBy:currentUser?currentUser.id:'',
+    createdByEmail:currentUser?(currentUser.email||currentUser.phone||''):''
   };
   customListings.push(listing);
   saveCustomListings();
@@ -865,6 +1265,11 @@ function addCustomFeature(){
 
 // ==================== Delete / Restore ====================
 function deleteListing(id){
+  if(!canDelete(id)){
+    if(userRole==='visitor'){ alert('请先登录后再操作'); }
+    else { alert('您只能删除自己发布的房源'); }
+    return;
+  }
   if(!confirm('确定要删除该房源吗？'))return;
   if(deletedIds.indexOf(id)===-1){
     deletedIds.push(id);
@@ -924,6 +1329,7 @@ function exportData(){
 }
 
 function clearAllCustom(){
+  if(!isAdmin() && supabaseEnabled){ alert('只有管理员可以清除所有自定义房源'); return; }
   if(!confirm('确定要清除所有自定义房源吗？此操作不可撤销！'))return;
   customListings=[];
   saveCustomListings();
@@ -1109,6 +1515,7 @@ drawRouteLayer.on('click',function(e){
 
 // ==================== Edit Modal ====================
 function openEditModal(id){
+  if(!canEdit()){ alert('请先登录后再编辑'); return; }
   var listing=getOriginalListing(id);
   if(!listing)return;
   editingId=id;
@@ -1227,23 +1634,16 @@ function geocodeEditAddress(){
 
 // ===== Sync Status =====
 function updateSyncStatus(){
-  var dot=document.getElementById('syncDot');
-  var text=document.getElementById('syncText');
-  if(!dot||!text)return;
-  if(!firebaseEnabled){
-    dot.className='sync-dot unconfigured';
-    text.textContent='离线模式（未配置Firebase）';
+  var loginBtn=document.getElementById('loginBtn');
+  if(!supabaseEnabled){
+    // 离线模式：显示登录按钮，点击提示配置
+    if(loginBtn && !currentUser) loginBtn.style.display='';
+    // 离线模式允许本地编辑
+    userRole='editor';
+    updateUIForRole();
     return;
   }
-  db.ref('.info/connected').on('value',function(snap){
-    if(snap.val()===true){
-      dot.className='sync-dot online';
-      text.textContent='已连接';
-    }else{
-      dot.className='sync-dot offline';
-      text.textContent='连接中...';
-    }
-  });
+  if(loginBtn && !currentUser) loginBtn.style.display='';
 }
 
 // ==================== Initialize ====================
@@ -1294,6 +1694,60 @@ updateSyncStatus();
       <button class="btn-cancel" onclick="closeEditModal()">取消</button>
       <button class="btn-save" onclick="saveListingEdit()">保存</button>
     </div>
+  </div>
+</div>
+
+</div>
+
+<!-- ===== 登录/注册模态框 ===== -->
+<div class="auth-modal" id="authModal" data-mode="login">
+  <div class="auth-modal-box">
+    <h3 id="authTitle">登录</h3>
+    <!-- 登录方式切换Tab -->
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tab-email" onclick="switchAuthTab('email')">邮箱登录</div>
+      <div class="auth-tab" id="tab-phone" onclick="switchAuthTab('phone')">手机号登录</div>
+    </div>
+    <!-- 邮箱登录区域 -->
+    <div id="authEmailSection">
+      <div class="form-group">
+        <label>邮箱</label>
+        <input type="email" id="authEmail" placeholder="请输入邮箱地址" onkeydown="if(event.key==='Enter')document.getElementById('authPassword').focus()">
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="authPassword" placeholder="请输入密码（至少6位）" onkeydown="if(event.key==='Enter')handleAuthSubmit()">
+      </div>
+    </div>
+    <!-- 手机号登录区域 -->
+    <div id="authPhoneSection" style="display:none;">
+      <div class="form-group">
+        <label>手机号</label>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="background:#f5f5f5;padding:10px 12px;border-radius:8px;font-size:.9rem;color:#666;">+86</span>
+          <input type="tel" id="authPhone" placeholder="请输入手机号" style="flex:1;" onkeydown="if(event.key==='Enter')handleAuthSubmit()">
+        </div>
+      </div>
+      <div class="form-group" id="authOtpSection" style="display:none;">
+        <label>验证码</label>
+        <input type="text" id="authOtp" placeholder="请输入6位验证码" maxlength="6" onkeydown="if(event.key==='Enter')handleAuthSubmit()">
+      </div>
+    </div>
+    <div class="auth-error" id="authError"></div>
+    <button class="auth-submit" id="authSubmitBtn" onclick="handleAuthSubmit()">登录</button>
+    <div class="auth-toggle">
+      <span id="authToggleHint">还没有账号？</span>
+      <a id="authToggleLink" onclick="toggleAuthMode()">注册新账号</a>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 管理员用户管理面板 ===== -->
+<div class="admin-modal" id="adminPanelModal">
+  <div class="admin-modal-box">
+    <button class="admin-close" onclick="hideAdminPanel()">关闭</button>
+    <h3>用户管理</h3>
+    <div id="usersListContainer"></div>
   </div>
 </div>
 
