@@ -1,13 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
+<html lang="zh-CN" data-theme="light" class=""><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>上海租房信息汇总（在线协作版）</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#f0f2f5;color:#333;line-height:1.6;}
@@ -151,12 +148,9 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 </head>
 <body>
 <header>
-<h1>上海租房信息汇总（在线协作版）</h1>
-<p>虹桥区域 · 市域机场线 · 南汇支线 · 公租房/保租房 · 多人实时协作 · 数据云端同步&nbsp;</p>
-<div class="sync-status" id="syncStatus">
-  <span class="sync-dot" id="syncDot"></span>
-  <span id="syncText">初始化中...</span>
-</div>
+<div class="sync-status" id="syncStatus"><span class="sync-dot unconfigured" id="syncDot"></span><span id="syncText">未配置</span></div>
+<h1>上海租房信息汇总</h1>
+<p>虹桥区域 · 市域机场线 · 南汇支线 · 公租房/保租房&nbsp;</p>
 </header>
 <div class="container">
 <!-- Stats -->
@@ -195,7 +189,6 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 <button id="toolDrawRoute" onclick="toggleDrawRoute()">绘制路线</button>
 <span class="divider"></span>
 <button id="toolDelete" onclick="toggleDeleteMode()">删除模式</button>
-<button onclick="exitEditMode()">退出编辑</button>
 <button onclick="clearAllDrawings()">清空绘制</button>
 </div>
 </div>
@@ -242,7 +235,7 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 
 <!-- Notice -->
 <div class="notice">
-<p>①点击下方"添加房源"展开录入表单，填写信息后可通过"地址定位"自动获取坐标，或在地图上点击拾取坐标；②手动录入的房源按区域类型显示对应颜色，标记带★号，支持拖拽移动位置；③所有房源标记均可拖拽移动位置，也可点击"编辑"按钮修改坐标、地址、地铁站等信息，修改后的原始房源会显示"已修改"标签；④原始房源也可删除，删除后可在"恢复已删除"中恢复；⑤配置Firebase后，所有操作实时同步到云端，多人协作共享同一份数据，关闭页面后不会丢失。</p>
+<p>①点击下方"添加房源"展开录入表单，填写信息后可通过"地址定位"自动获取坐标，或在地图上点击拾取坐标；②手动录入的房源按区域类型显示对应颜色，标记带★号，支持拖拽移动位置；③所有房源标记均可拖拽移动位置，也可点击"编辑"按钮修改坐标、地址、地铁站等信息，修改后的原始房源会显示"已修改"标签；④原始房源也可删除，删除后可在"恢复已删除"中恢复；⑤所有操作自动保存在浏览器本地，关闭页面后不会丢失。</p>
 </div>
 
 <!-- Add Form Section -->
@@ -343,66 +336,13 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 
 </div>
 
-<!-- Setup Guide -->
-<div class="setup-guide" style="background:#fff;border-radius:12px;padding:20px;margin:20px 0;box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid #1565c0;">
-  <h3 style="font-size:16px;margin-bottom:12px;color:#1565c0;">在线协作配置指南</h3>
-  <p style="font-size:13px;color:#666;margin-bottom:8px;"><strong>第一步：</strong>访问 <a href="https://console.firebase.google.com/" target="_blank" style="color:#1565c0;">Firebase Console</a>，点击"创建项目"，按提示完成创建。</p>
-  <p style="font-size:13px;color:#666;margin-bottom:8px;"><strong>第二步：</strong>在项目左侧菜单选择"Realtime Database"→"创建数据库"→选择"测试模式"（30天内允许读写）。</p>
-  <p style="font-size:13px;color:#666;margin-bottom:8px;"><strong>第三步：</strong>点击项目设置（齿轮图标）→"常规"标签页→滚动到底部"您的应用"→点击"</></"添加应用"→选择Web(</>)。</p>
-  <p style="font-size:13px;color:#666;margin-bottom:8px;"><strong>第四步：</strong>注册应用后，复制 firebaseConfig 中的 apiKey、databaseURL、projectId、appId 四个值。</p>
-  <p style="font-size:13px;color:#666;margin-bottom:8px;"><strong>第五步：</strong>用文本编辑器打开本HTML文件，找到顶部的 <code style="background:#f5f5f5;padding:2px 6px;border-radius:4px;">var firebaseConfig</code>，将四个"YOUR_..."替换为你的值，保存。</p>
-  <p style="font-size:13px;color:#666;margin-bottom:8px;"><strong>第六步：</strong>刷新页面，右上角状态指示灯变绿即表示已连接。分享此文件给同事即可实时协作。</p>
-  <p style="font-size:13px;color:#e65100;margin-top:8px;"><strong>注意：</strong>测试模式30天后会锁定，需在Firebase控制台→Realtime Database→规则中设置访问权限。简单方案：{ "rules": { ".read": true, ".write": true } }</p>
-</div>
-
 <footer>
 <p>上海租房信息汇总 · 数据仅供参考，以实际房源为准 · 最后更新：2026年8月</p>
 </footer>
 
-<!-- ===== 编辑坐标模态框 ===== -->
-<div class="modal-overlay" id="editModal">
-  <div class="modal-box">
-    <h3>修改房源信息</h3>
-    <span class="editing-name" id="editName"></span>
-    <div class="form-row">
-      <label>纬度 (lat)</label>
-      <input type="number" id="editLat" step="0.0001" placeholder="如：31.2000">
-    </div>
-    <div class="form-row">
-      <label>经度 (lng)</label>
-      <input type="number" id="editLng" step="0.0001" placeholder="如：121.3000">
-    </div>
-    <div class="form-row">
-      <label>地址（修改后可点击"地址定位"重新获取坐标）</label>
-      <input type="text" id="editAddress" placeholder="如：闵行区申虹路XXX弄">
-    </div>
-    <div class="form-row" style="display:flex;gap:8px;">
-      <button class="edit-btn" style="margin-right:0;" onclick="geocodeEditAddress()">地址定位</button>
-      <span class="mini-map-hint" style="line-height:32px;">点击定位后自动填入坐标</span>
-    </div>
-    <div class="form-row">
-      <label>最近地铁站</label>
-      <input type="text" id="editSubway" placeholder="如：2号线虹桥火车站">
-    </div>
-    <div class="form-row">
-      <label>距地铁距离</label>
-      <input type="text" id="editSubwayDist" placeholder="如：500米">
-    </div>
-    <div class="form-row">
-      <label>联系人/运营方</label>
-      <input type="text" id="editContact" placeholder="如：张先生 138xxxx">
-    </div>
-    <div class="form-row">
-      <label>月租（元/月）</label>
-      <input type="text" id="editPrice" placeholder="如：2000">
-    </div>
-    <div class="btn-row">
-      <button class="btn-reset" id="resetBtn" onclick="resetListingEdit()">重置原始值</button>
-      <button class="btn-cancel" onclick="closeEditModal()">取消</button>
-      <button class="btn-save" onclick="saveListingEdit()">保存</button>
-    </div>
-  </div>
-</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>
 // ===== Firebase 配置（请替换为你自己的项目配置）=====
@@ -412,14 +352,12 @@ var firebaseConfig = {
   projectId: "YOUR_PROJECT_ID",
   appId: "YOUR_APP_ID"
 };
-// 如果未配置 Firebase，回退到 localStorage
 var firebaseEnabled = firebaseConfig.apiKey !== "YOUR_API_KEY";
 var db = null;
 if(firebaseEnabled){
   firebase.initializeApp(firebaseConfig);
   db = firebase.database();
 }
-
 // ==================== Original Listings Data ====================
 var originalListings = [
 {id:1,area:"虹桥区域",name:"虹桥协信中心二期",price:2500,priceStr:"2500元/月",layout:"1室1厅1卫",area_size:"39㎡",type:"公寓",address:"闵行区申虹路929弄8号",subway:"10号线虹桥火车站",subwayDist:"1699米",contact:"王磊",company:"上海寓众公寓管理有限公司",platform:"58同城",platformClass:"platform-58",url:"https://sh.58.com/zufang/4605102097327112x.shtml",features:["独卫一居","押一付一","配套齐全","精装修","随时看房"],facilities:["床","衣柜","沙发","电视","冰箱","洗衣机","空调","热水器","宽带","燃气灶","油烟机","可做饭","独立阳台","智能门锁"],payment:"押一付一",lat:31.211296,lng:121.321299,notes:"华漕商圈，距协信星光天地216米"},
@@ -453,20 +391,13 @@ var originalListings = [
 {id:29,area:"公租房/保租房",name:"禧悦华庭（官方平台长租公寓）",price:2500,priceStr:"2500元/月",layout:"1室",area_size:"42㎡",type:"公寓",address:"青浦区盈浦街道 淀惠路398弄",subway:"17号线（需公交换乘）",subwayDist:"约3km",contact:"上海首青置业有限公司",company:"上海首青置业有限公司",platform:"上海住房租赁平台",platformClass:"platform-gov",url:"https://zfzl.fgj.sh.gov.cn/information/project.html?index=20",features:["官方核验","房源保真","精装修","面积大"],facilities:["精装修","家电齐全"],payment:"押一付一",lat:31.1500,lng:121.1500,notes:"青浦盈浦板块，17号线可达虹桥"}
 ];
 
-// ==================== Firebase-backed Data Management ====================
-function updateSyncTimestamp(){
-  if(firebaseEnabled){
-    db.ref('lastModified').set({time: Date.now(), action: 'edit'});
-  }
-}
-
+// ==================== localStorage Management ====================
 function loadCustomListings(){
   try{var d=localStorage.getItem('sh_rental_custom');return d?JSON.parse(d):[];}catch(e){return[];}
 }
 function saveCustomListings(){
   if(firebaseEnabled){
     db.ref('customListings').set(customListings);
-    updateSyncTimestamp();
   } else {
     try{localStorage.setItem('sh_rental_custom',JSON.stringify(customListings));}catch(e){}
   }
@@ -477,19 +408,13 @@ function loadDeletedIds(){
 function saveDeletedIds(){
   if(firebaseEnabled){
     db.ref('deletedIds').set(deletedIds);
-    updateSyncTimestamp();
   } else {
     try{localStorage.setItem('sh_rental_deleted',JSON.stringify(deletedIds));}catch(e){}
   }
 }
 
-// Initial load - if Firebase not enabled, use localStorage
-var customListings = [];
-var deletedIds = [];
-if(!firebaseEnabled){
-  customListings = loadCustomListings();
-  deletedIds = loadDeletedIds();
-}
+var customListings = loadCustomListings();
+var deletedIds = loadDeletedIds();
 var nextCustomId = (function(){
   var max=1000;
   customListings.forEach(function(l){if(l.id>max)max=l.id;});
@@ -503,14 +428,28 @@ function loadOverrides(){
 function saveOverrides(){
   if(firebaseEnabled){
     db.ref('overrides').set(listingOverrides);
-    updateSyncTimestamp();
   } else {
     try{localStorage.setItem('sh_rental_overrides',JSON.stringify(listingOverrides));}catch(e){}
   }
 }
-var listingOverrides = {};
-if(!firebaseEnabled){
-  listingOverrides = loadOverrides();
+var listingOverrides = loadOverrides();
+
+// ===== Firebase Real-time Listeners =====
+if(firebaseEnabled){
+  db.ref('customListings').on('value', function(snapshot){
+    var val = snapshot.val();
+    customListings = Array.isArray(val) ? val : (val ? Object.values(val) : []);
+    if(typeof refreshAll === 'function') refreshAll();
+  });
+  db.ref('deletedIds').on('value', function(snapshot){
+    var val = snapshot.val();
+    deletedIds = Array.isArray(val) ? val : (val ? Object.keys(val).map(Number) : []);
+    if(typeof refreshAll === 'function') refreshAll();
+  });
+  db.ref('overrides').on('value', function(snapshot){
+    listingOverrides = snapshot.val() || {};
+    if(typeof refreshAll === 'function') refreshAll();
+  });
 }
 var editingId = null;
 
@@ -1286,77 +1225,87 @@ function geocodeEditAddress(){
     });
 }
 
-// ==================== Connection Status & Real-time Sync ====================
-function updateSyncStatus(status, text){
+// ===== Sync Status =====
+function updateSyncStatus(){
   var dot=document.getElementById('syncDot');
-  var txt=document.getElementById('syncText');
-  dot.className='sync-dot '+status;
-  txt.textContent=text;
-}
-
-if(firebaseEnabled){
-  // Monitor connection state
-  db.ref('.info/connected').on('value', function(snapshot){
-    if(snapshot.val()===true){
-      var txt=document.getElementById('syncText');
-      var currentText=txt.textContent;
-      // Preserve lastModified time if present
-      if(currentText.indexOf('最后更新')!==-1){
-        var timePart=currentText.split('最后更新: ')[1];
-        updateSyncStatus('online', '已连接 · 最后更新: '+timePart);
-      }else{
-        updateSyncStatus('online', '已连接');
-      }
+  var text=document.getElementById('syncText');
+  if(!dot||!text)return;
+  if(!firebaseEnabled){
+    dot.className='sync-dot unconfigured';
+    text.textContent='离线模式（未配置Firebase）';
+    return;
+  }
+  db.ref('.info/connected').on('value',function(snap){
+    if(snap.val()===true){
+      dot.className='sync-dot online';
+      text.textContent='已连接';
     }else{
-      updateSyncStatus('offline', '离线模式');
+      dot.className='sync-dot offline';
+      text.textContent='连接中...';
     }
   });
-
-  // Listen for lastModified timestamp
-  db.ref('lastModified').on('value', function(snapshot){
-    var val=snapshot.val();
-    if(val&&val.time){
-      var d=new Date(val.time);
-      var timeStr=d.getHours().toString().padStart(2,'0')+':'+
-                   d.getMinutes().toString().padStart(2,'0')+':'+
-                   d.getSeconds().toString().padStart(2,'0');
-      var dot=document.getElementById('syncDot');
-      if(dot.classList.contains('online')){
-        document.getElementById('syncText').textContent='已连接 · 最后更新: '+timeStr;
-      }
-    }
-  });
-
-  // Listen for real-time changes - customListings
-  db.ref('customListings').on('value', function(snapshot){
-    customListings = snapshot.val() || [];
-    if(!Array.isArray(customListings)) customListings = Object.values(customListings);
-    // Recalculate nextCustomId
-    var max=1000;
-    customListings.forEach(function(l){if(l.id>max)max=l.id;});
-    nextCustomId=max+1;
-    refreshAll();
-  });
-  // Listen for real-time changes - deletedIds
-  db.ref('deletedIds').on('value', function(snapshot){
-    var val=snapshot.val();
-    if(Array.isArray(val)){deletedIds=val;}
-    else if(val){deletedIds=Object.keys(val).map(Number);}
-    else{deletedIds=[];}
-    refreshAll();
-  });
-  // Listen for real-time changes - overrides
-  db.ref('overrides').on('value', function(snapshot){
-    listingOverrides=snapshot.val()||{};
-    refreshAll();
-  });
-} else {
-  updateSyncStatus('unconfigured', '未配置');
 }
 
 // ==================== Initialize ====================
 refreshAll();
+updateSyncStatus();
 </script>
 
-</body>
-</html>
+
+<!-- ===== 编辑坐标模态框 ===== -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal-box">
+    <h3>修改房源信息</h3>
+    <span class="editing-name" id="editName"></span>
+    <div class="form-row">
+      <label>纬度 (lat)</label>
+      <input type="number" id="editLat" step="0.0001" placeholder="如：31.2000">
+    </div>
+    <div class="form-row">
+      <label>经度 (lng)</label>
+      <input type="number" id="editLng" step="0.0001" placeholder="如：121.3000">
+    </div>
+    <div class="form-row">
+      <label>地址（修改后可点击"地址定位"重新获取坐标）</label>
+      <input type="text" id="editAddress" placeholder="如：闵行区申虹路XXX弄">
+    </div>
+    <div class="form-row" style="display:flex;gap:8px;">
+      <button class="edit-btn" style="margin-right:0;" onclick="geocodeEditAddress()">地址定位</button>
+      <span class="mini-map-hint" style="line-height:32px;">点击定位后自动填入坐标</span>
+    </div>
+    <div class="form-row">
+      <label>最近地铁站</label>
+      <input type="text" id="editSubway" placeholder="如：2号线虹桥火车站">
+    </div>
+    <div class="form-row">
+      <label>距地铁距离</label>
+      <input type="text" id="editSubwayDist" placeholder="如：500米">
+    </div>
+    <div class="form-row">
+      <label>联系人/运营方</label>
+      <input type="text" id="editContact" placeholder="如：张先生 138xxxx">
+    </div>
+    <div class="form-row">
+      <label>月租（元/月）</label>
+      <input type="text" id="editPrice" placeholder="如：2000">
+    </div>
+    <div class="btn-row">
+      <button class="btn-reset" id="resetBtn" onclick="resetListingEdit()">重置原始值</button>
+      <button class="btn-cancel" onclick="closeEditModal()">取消</button>
+      <button class="btn-save" onclick="saveListingEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div style="background:#fff;border-radius:10px;padding:20px;margin:20px 0;box-shadow:0 2px 6px rgba(0,0,0,.08);border-left:4px solid #1565c0;">
+  <h3 style="font-size:1.1rem;margin-bottom:12px;color:#1565c0;">在线协作配置指南</h3>
+  <p style="font-size:.9rem;color:#555;margin-bottom:8px;"><strong>第一步：</strong>访问 <a href="https://console.firebase.google.com/" target="_blank" style="color:#1565c0;">Firebase Console</a>，创建新项目。</p>
+  <p style="font-size:.9rem;color:#555;margin-bottom:8px;"><strong>第二步：</strong>左侧菜单 Realtime Database → 创建数据库 → 选择"测试模式"。</p>
+  <p style="font-size:.9rem;color:#555;margin-bottom:8px;"><strong>第三步：</strong>项目设置(齿轮) → 常规 → 您的应用 → 添加Web应用(</>)。</p>
+  <p style="font-size:.9rem;color:#555;margin-bottom:8px;"><strong>第四步：</strong>复制 firebaseConfig 中的 apiKey、databaseURL、projectId、appId。</p>
+  <p style="font-size:.9rem;color:#555;margin-bottom:8px;"><strong>第五步：</strong>用记事本打开本文件，找到 <code style="background:#f5f5f5;padding:2px 6px;border-radius:4px;">var firebaseConfig</code>，替换四个 YOUR_... 值，保存。</p>
+  <p style="font-size:.9rem;color:#555;margin-bottom:8px;"><strong>第六步：</strong>刷新页面，右上角变绿即已连接。分享链接给同事即可实时协作。</p>
+  <p style="font-size:.9rem;color:#e65100;margin-top:8px;"><strong>注意：</strong>测试模式30天后锁定，需在Firebase控制台设置规则：{ "rules": { ".read": true, ".write": true } }</p>
+</div>
+
+</body></html>
