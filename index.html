@@ -401,31 +401,82 @@ if(supabaseEnabled){
   sb.auth.onAuthStateChange(function(event, session){
     if(session && session.user){
       currentUser = session.user;
-      // 获取用户角色
-      sb.from('profiles').select('role, email, phone, nickname').eq('id', session.user.id).single()
+      console.log('[Auth] User ID:', session.user.id, 'Email:', session.user.email);
+      // 获取用户角色 - 先按id查，再按email查
+      sb.from('profiles').select('role, email, phone, nickname, id').eq('id', session.user.id).single()
       .then(function(res){
-        if(!res.data){
-          // 新用户默认为editor
-          sb.from('profiles').insert({
-            id: session.user.id,
-            email: session.user.email || session.user.phone || '',
-            phone: session.user.phone || '',
-            role: 'editor',
-            created_at: new Date().toISOString()
-          }).then(function(){
-            userRole = 'editor';
-            updateUIForRole();
-            updateSyncStatus();
-          });
-        } else {
+        if(res.error && res.error.code === 'PGRST116'){
+          // 按id未找到，尝试按email查
+          console.log('[Auth] Profile not found by id, trying email...');
+          return sb.from('profiles').select('role, email, phone, nickname, id').eq('email', session.user.email||'').single()
+            .then(function(res2){
+              if(res2.data){
+                console.log('[Auth] Found by email, role:', res2.data.role);
+                // 找到了但id不对，更新id
+                var correctRole = res2.data.role || 'editor';
+                // 更新记录的id为正确的auth uid
+                sb.from('profiles').update({id: session.user.id}).eq('email', session.user.email||'').then(function(){
+                  console.log('[Auth] Updated profile id to match auth uid');
+                });
+                userRole = correctRole;
+                updateUIForRole();
+                updateSyncStatus();
+              } else {
+                // email也找不到，创建新用户
+                console.log('[Auth] Creating new profile as editor');
+                sb.from('profiles').insert({
+                  id: session.user.id,
+                  email: session.user.email || session.user.phone || '',
+                  phone: session.user.phone || '',
+                  role: 'editor',
+                  created_at: new Date().toISOString()
+                }).then(function(){
+                  userRole = 'editor';
+                  updateUIForRole();
+                  updateSyncStatus();
+                });
+              }
+            });
+        } else if(res.data){
+          console.log('[Auth] Found by id, role:', res.data.role);
           userRole = res.data.role || 'editor';
           updateUIForRole();
           updateSyncStatus();
+        } else {
+          // 其他错误情况，尝试email
+          console.log('[Auth] Query error, trying email fallback...');
+          sb.from('profiles').select('role, email, phone, nickname, id').eq('email', session.user.email||'').single()
+          .then(function(res2){
+            if(res2.data){
+              console.log('[Auth] Found by email (fallback), role:', res2.data.role);
+              userRole = res2.data.role || 'editor';
+              updateUIForRole();
+              updateSyncStatus();
+            } else {
+              userRole = 'editor';
+              updateUIForRole();
+              updateSyncStatus();
+            }
+          });
         }
       }).catch(function(e){
-        console.error('获取用户角色失败:', e);
-        userRole = 'visitor';
-        updateUIForRole();
+        console.error('[Auth] 获取用户角色失败:', e);
+        // 最后兜底：尝试email查询
+        sb.from('profiles').select('role, email, phone, nickname, id').eq('email', session.user.email||'').single()
+        .then(function(res2){
+          if(res2.data){
+            console.log('[Auth] Found by email (catch), role:', res2.data.role);
+            userRole = res2.data.role || 'editor';
+          } else {
+            userRole = 'editor';
+          }
+          updateUIForRole();
+          updateSyncStatus();
+        }).catch(function(e2){
+          userRole = 'editor';
+          updateUIForRole();
+          updateSyncStatus();
+        });
       });
     } else {
       currentUser = null;
