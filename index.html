@@ -310,7 +310,7 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 <div id="pickHint"></div>
 <div class="form-grid">
 <div class="form-group"><label>房源名称 *</label><input type="text" id="f_name" placeholder="如：虹桥天地公寓"></div>
-<div class="form-group"><label>月租（元）*</label><input type="number" id="f_price" placeholder="如：2500"></div>
+<div class="form-group"><label>月租（元）*</label><input type="text" id="f_price" placeholder="如：2500 或 2500-3500"></div>
 <div class="form-group"><label>户型</label><input type="text" id="f_layout" placeholder="如：1室1厅1卫"></div>
 <div class="form-group"><label>面积</label><input type="text" id="f_area_size" placeholder="如：39㎡"></div>
 <div class="form-group"><label>类型 *</label><select id="f_type"><option value="公寓">公寓</option><option value="住宅">住宅</option><option value="公租房">公租房</option><option value="保租房">保租房</option></select></div>
@@ -1347,6 +1347,9 @@ function submitListing(){
   var price=document.getElementById('f_price').value.trim();
   if(!name){alert('请输入房源名称');return;}
   if(!price){alert('请输入月租价格');return;}
+  // 支持单个价格或价格区间（如：2500 或 2500-3500）
+  var priceMatch=price.match(/^(\d+)\s*[-~～]\s*(\d+)$/) || price.match(/^(\d+)$/);
+  if(!priceMatch){alert('请输入正确的月租价格格式（如：2500 或 2500-3500）');return;}
   var type=document.getElementById('f_type').value;
   var area=document.getElementById('f_area').value;
   var platform=document.getElementById('f_platform').value;
@@ -1366,8 +1369,8 @@ function submitListing(){
     isCustom:true,
     area:area,
     name:name,
-    price:parseInt(price),
-    priceStr:price+'元/月',
+    price:parseInt(priceMatch[1]),
+    priceStr:priceMatch[2]?(parseInt(priceMatch[1])+'-'+parseInt(priceMatch[2])+'元/月'):(parseInt(priceMatch[1])+'元/月'),
     layout:document.getElementById('f_layout').value.trim()||'-',
     area_size:document.getElementById('f_area_size').value.trim()||'-',
     type:type,
@@ -1779,10 +1782,10 @@ function saveListingEdit(){
     if(subwayDist)listingOverrides[editingId].subwayDist=subwayDist;
     if(contact)listingOverrides[editingId].contact=contact;
     if(priceVal){
-      var pNum=parseInt(priceVal);
-      if(!isNaN(pNum)){
-        listingOverrides[editingId].price=pNum;
-        listingOverrides[editingId].priceStr=priceVal+'元/月';
+      var pMatch=priceVal.match(/^(\d+)\s*[-~～]\s*(\d+)$/)||priceVal.match(/^(\d+)$/);
+      if(pMatch){
+        listingOverrides[editingId].price=parseInt(pMatch[1]);
+        listingOverrides[editingId].priceStr=pMatch[2]?(parseInt(pMatch[1])+'-'+parseInt(pMatch[2])+'元/月'):(parseInt(pMatch[1])+'元/月');
       }
     }
     saveOverrides();
@@ -1797,8 +1800,8 @@ function saveListingEdit(){
         if(subwayDist)customListings[i].subwayDist=subwayDist;
         if(contact)customListings[i].contact=contact;
         if(priceVal){
-          var pN=parseInt(priceVal);
-          if(!isNaN(pN)){customListings[i].price=pN;customListings[i].priceStr=priceVal+'元/月';}
+          var pN=priceVal.match(/^(\d+)\s*[-~～]\s*(\d+)$/)||priceVal.match(/^(\d+)$/);
+          if(pN){customListings[i].price=parseInt(pN[1]);customListings[i].priceStr=pN[2]?(parseInt(pN[1])+'-'+parseInt(pN[2])+'元/月'):(parseInt(pN[1])+'元/月');}
         }
         break;
       }
@@ -2101,7 +2104,7 @@ loadAnnouncements();
     </div>
     <div class="form-row">
       <label>月租（元/月）</label>
-      <input type="text" id="editPrice" placeholder="如：2000">
+      <input type="text" id="editPrice" placeholder="如：2000 或 2000-3000">
     </div>
     <div class="btn-row">
       <button class="btn-reset" id="resetBtn" onclick="resetListingEdit()">重置原始值</button>
