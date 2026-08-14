@@ -89,6 +89,34 @@ tbody tr:hover{background:#f5f9ff;}
 .checkbox-group input[type="checkbox"]{margin:0;cursor:pointer;}
 .custom-badge{display:inline-flex;align-items:center;gap:4px;background:#e8f5e9;color:#2e7d32;padding:3px 8px;border-radius:12px;font-size:.78rem;margin:2px;}
 .custom-badge button{background:none;border:none;color:#e53935;cursor:pointer;font-size:.9rem;padding:0;line-height:1;}
+/* 公告区域 */
+.announcement-section{background:linear-gradient(135deg,#fffde7,#fff8e1);border:1px solid #ffe082;border-radius:10px;padding:16px 20px;margin-bottom:20px;box-shadow:0 2px 6px rgba(255,193,7,.15);}
+.announcement-section .ann-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.announcement-section .ann-title{font-size:1.05rem;font-weight:700;color:#e65100;display:flex;align-items:center;gap:6px;}
+.announcement-section .ann-list{display:flex;flex-direction:column;gap:8px;}
+.announcement-item{background:#fff;border:1px solid #fff3c4;border-radius:8px;padding:10px 14px;position:relative;}
+.announcement-item .ann-content{font-size:.88rem;color:#444;line-height:1.6;}
+.announcement-item .ann-meta{font-size:.72rem;color:#999;margin-top:4px;display:flex;align-items:center;gap:8px;}
+.announcement-item .ann-actions{position:absolute;top:8px;right:10px;display:flex;gap:4px;}
+.announcement-item .ann-actions button{background:none;border:1px solid #ddd;border-radius:4px;padding:2px 8px;font-size:.72rem;cursor:pointer;color:#666;transition:all .2s;}
+.announcement-item .ann-actions button:hover{background:#fff3e0;border-color:#ff9800;color:#e65100;}
+.announcement-item .ann-actions button.del-btn:hover{background:#ffebee;border-color:#f44336;color:#d32f2f;}
+.ann-admin-bar{display:none;align-items:center;gap:8px;margin-bottom:10px;}
+.ann-admin-bar button{padding:5px 14px;border:1px solid #ff9800;border-radius:6px;background:#fff3e0;color:#e65100;font-size:.82rem;cursor:pointer;font-weight:600;transition:all .2s;}
+.ann-admin-bar button:hover{background:#ffe0b2;}
+/* 公告编辑弹窗 */
+.ann-modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:2000;display:none;align-items:center;justify-content:center;}
+.ann-modal-overlay.show{display:flex;}
+.ann-modal{background:#fff;border-radius:12px;padding:24px;width:90%;max-width:500px;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+.ann-modal h3{margin:0 0 16px;color:#e65100;font-size:1.1rem;}
+.ann-modal textarea{width:100%;min-height:100px;padding:10px;border:1px solid #e0e0e0;border-radius:6px;font-size:.88rem;resize:vertical;font-family:inherit;line-height:1.6;}
+.ann-modal textarea:focus{outline:none;border-color:#ff9800;box-shadow:0 0 0 2px rgba(255,152,0,.15);}
+.ann-modal .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+.ann-modal .modal-actions button{padding:6px 18px;border-radius:6px;font-size:.85rem;cursor:pointer;font-weight:600;border:none;}
+.ann-modal .btn-save{background:#ff9800;color:#fff;}
+.ann-modal .btn-save:hover{background:#f57c00;}
+.ann-modal .btn-cancel{background:#f5f5f5;color:#666;}
+.ann-modal .btn-cancel:hover{background:#e0e0e0;}
 .pick-coords-btn{background:#ff9800;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:.82rem;transition:all .2s;}
 .pick-coords-btn:hover{background:#f57c00;}
 .pick-coords-btn.active{background:#e65100;box-shadow:0 0 0 3px rgba(255,152,0,.3);}
@@ -203,6 +231,19 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 <div class="stat-card"><div class="num" id="statGov">9</div><div class="label">公租房/保租房</div></div>
 </div>
 
+<!-- Announcements -->
+<div class="announcement-section" id="announcementSection" style="display:none;">
+  <div class="ann-header">
+    <div class="ann-title">📢 站点公告</div>
+    <div class="ann-admin-bar" id="annAdminBar">
+      <button onclick="showAnnModal()">+ 发布公告</button>
+    </div>
+  </div>
+  <div class="ann-list" id="annList">
+    <div style="text-align:center;color:#999;padding:10px;font-size:.85rem;">暂无公告</div>
+  </div>
+</div>
+
 <!-- Apply Guide -->
 <div class="apply-guide">
 <h3>公租房/保租房申请指南</h3>
@@ -218,11 +259,10 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 <div class="legend">
 <h4>图例</h4>
 <div class="legend-item"><span class="legend-dot" style="background:#1565c0;"></span>工作地点</div>
-<div class="legend-item"><span class="legend-dot" style="background:#e91e63;"></span>虹桥区域-公寓</div>
-<div class="legend-item"><span class="legend-dot" style="background:#ad1457;"></span>虹桥区域-住宅</div>
-<div class="legend-item"><span class="legend-dot" style="background:#7b1fa2;"></span>市域机场线</div>
-<div class="legend-item"><span class="legend-dot" style="background:#00897b;"></span>南汇支线</div>
-<div class="legend-item"><span class="legend-dot" style="background:#f57c00;"></span>公租房/保租房</div>
+<div class="legend-item"><span class="legend-dot" style="background:#e91e63;"></span>公寓</div>
+<div class="legend-item"><span class="legend-dot" style="background:#5e35b1;"></span>住宅</div>
+<div class="legend-item"><span class="legend-dot" style="background:#f57c00;"></span>公租房</div>
+<div class="legend-item"><span class="legend-dot" style="background:#00897b;"></span>保租房</div>
 </div>
 
 </div>
@@ -257,11 +297,6 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 <h4>已删除房源（可恢复）</h4>
 <div id="restoreList"><p style="color:#999;text-align:center;padding:10px;">暂无已删除房源</p></div>
 </div>
-</div>
-
-<!-- Notice -->
-<div class="notice">
-<p>①支持<strong>邮箱密码</strong>登录方式，注册时需通过<strong>邮箱验证码</strong>验证，支持<strong>密码找回</strong>；②<strong>管理员</strong>可删除任意房源、管理用户角色、清除自定义房源；③<strong>编辑者</strong>可发布房源、编辑房源信息、只能删除自己发布的房源；④<strong>访客</strong>（未登录）只能查看，不能修改；⑤所有房源标记均可拖拽移动位置，可点击"编辑"按钮修改信息；⑥离线模式（未配置Supabase）下所有功能正常，数据保存在本地浏览器。</p>
 </div>
 
 <!-- Add Form Section -->
@@ -512,6 +547,8 @@ function updateUIForRole(){
   // 刷新表格以更新按钮显示
   currentPage = 1;
   refreshAll();
+  // 刷新公告区域
+  if(typeof renderAnnouncements === 'function') renderAnnouncements();
 }
 
 // ===== 登录/注册/登出（邮箱）=====
@@ -940,13 +977,10 @@ var mapMarkers = [];
 
 // ==================== Marker Functions ====================
 function getMarkerColor(listing){
-  if(listing.area==='公租房/保租房')return '#f57c00';
-  if(listing.area==='南汇支线')return '#00897b';
-  if(listing.area==='市域机场线')return '#7b1fa2';
-  if(listing.area==='虹桥区域'){
-    if(listing.type==='住宅')return '#ad1457';
-    return '#e91e63';
-  }
+  if(listing.type==='公寓')return '#e91e63';
+  if(listing.type==='住宅')return '#5e35b1';
+  if(listing.type==='公租房')return '#f57c00';
+  if(listing.type==='保租房')return '#00897b';
   return '#546e7a';
 }
 
@@ -1757,9 +1791,193 @@ function updateSyncStatus(){
   if(loginBtn && !currentUser) loginBtn.style.display='';
 }
 
+// ==================== 公告管理（仅管理员） ====================
+var announcements = [];
+var editingAnnId = null;
+var ANN_STORAGE_KEY = 'sh_rental_announcements';
+
+function loadAnnouncements(){
+  // 先从localStorage加载
+  try{
+    var stored = localStorage.getItem(ANN_STORAGE_KEY);
+    if(stored){
+      announcements = JSON.parse(stored);
+    }
+  }catch(e){ announcements = []; }
+  // 如果Supabase可用，尝试从数据库加载
+  if(supabaseEnabled && supabaseClient){
+    supabaseClient.from('announcements').select('*').order('created_at',{ascending:false}).then(function(res){
+      if(!res.error && res.data && res.data.length > 0){
+        announcements = res.data.map(function(row){
+          return {
+            id: row.id,
+            content: row.content,
+            author: row.author_email || '管理员',
+            createdAt: row.created_at
+          };
+        });
+        renderAnnouncements();
+      } else {
+        renderAnnouncements();
+      }
+    }).catch(function(e){
+      console.log('[Announcements] Supabase load failed, using localStorage:', e.message);
+      renderAnnouncements();
+    });
+  } else {
+    renderAnnouncements();
+  }
+}
+
+function saveAnnouncementsLocal(){
+  try{
+    localStorage.setItem(ANN_STORAGE_KEY, JSON.stringify(announcements));
+  }catch(e){ console.log('[Announcements] Save failed:', e); }
+}
+
+function renderAnnouncements(){
+  var section = document.getElementById('announcementSection');
+  var list = document.getElementById('annList');
+  var adminBar = document.getElementById('annAdminBar');
+  if(!section) return;
+
+  // 公告区域对所有登录用户可见，管理按钮仅管理员可见
+  if(currentUser){
+    section.style.display = '';
+  } else {
+    section.style.display = '';
+  }
+  if(adminBar){
+    adminBar.style.display = isAdmin() ? 'flex' : 'none';
+  }
+
+  if(announcements.length === 0){
+    list.innerHTML = '<div style="text-align:center;color:#999;padding:10px;font-size:.85rem;">暂无公告</div>';
+    return;
+  }
+
+  list.innerHTML = announcements.map(function(ann){
+    var time = formatDateTime(ann.createdAt);
+    var actions = isAdmin() ? 
+      '<div class="ann-actions">'+
+        '<button onclick="editAnnouncement(\''+ann.id+'\')">编辑</button>'+
+        '<button class="del-btn" onclick="deleteAnnouncement(\''+ann.id+'\')">删除</button>'+
+      '</div>' : '';
+    return '<div class="announcement-item">'+
+      actions+
+      '<div class="ann-content">'+escapeHtml(ann.content)+'</div>'+
+      '<div class="ann-meta"><span>发布者：'+escapeHtml(ann.author||'管理员')+'</span><span>'+time+'</span></div>'+
+    '</div>';
+  }).join('');
+}
+
+function escapeHtml(text){
+  if(!text) return '';
+  var div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function showAnnModal(){
+  if(!isAdmin()){ alert('仅管理员可发布公告'); return; }
+  editingAnnId = null;
+  document.getElementById('annModalTitle').textContent = '发布公告';
+  document.getElementById('annContent').value = '';
+  document.getElementById('annSaveBtn').textContent = '发布';
+  document.getElementById('annModalOverlay').classList.add('show');
+  setTimeout(function(){ document.getElementById('annContent').focus(); }, 100);
+}
+
+function editAnnouncement(id){
+  if(!isAdmin()){ return; }
+  var ann = announcements.find(function(a){ return String(a.id) === String(id); });
+  if(!ann) return;
+  editingAnnId = id;
+  document.getElementById('annModalTitle').textContent = '编辑公告';
+  document.getElementById('annContent').value = ann.content;
+  document.getElementById('annSaveBtn').textContent = '保存';
+  document.getElementById('annModalOverlay').classList.add('show');
+}
+
+function hideAnnModal(){
+  document.getElementById('annModalOverlay').classList.remove('show');
+  editingAnnId = null;
+}
+
+function saveAnnouncement(){
+  if(!isAdmin()){ alert('仅管理员可操作'); return; }
+  var content = document.getElementById('annContent').value.trim();
+  if(!content){ alert('请输入公告内容'); return; }
+  var authorEmail = currentUser ? (currentUser.email || '管理员') : '管理员';
+
+  if(editingAnnId){
+    // 编辑
+    var ann = announcements.find(function(a){ return String(a.id) === String(editingAnnId); });
+    if(ann){
+      ann.content = content;
+      ann.author = authorEmail;
+      ann.createdAt = new Date().toISOString();
+    }
+    // Supabase更新
+    if(supabaseEnabled && supabaseClient){
+      supabaseClient.from('announcements').update({
+        content: content,
+        author_email: authorEmail,
+        updated_at: new Date().toISOString()
+      }).eq('id', editingAnnId).then(function(){
+        saveAnnouncementsLocal();
+        renderAnnouncements();
+      });
+    } else {
+      saveAnnouncementsLocal();
+      renderAnnouncements();
+    }
+  } else {
+    // 新建
+    var newId = 'ann_' + Date.now();
+    var newAnn = {
+      id: newId,
+      content: content,
+      author: authorEmail,
+      createdAt: new Date().toISOString()
+    };
+    announcements.unshift(newAnn);
+    // Supabase插入
+    if(supabaseEnabled && supabaseClient){
+      supabaseClient.from('announcements').insert({
+        id: newId,
+        content: content,
+        author_email: authorEmail
+      }).then(function(res){
+        if(res.error) console.log('[Announcements] Supabase insert error:', res.error.message);
+      });
+    }
+    saveAnnouncementsLocal();
+    renderAnnouncements();
+  }
+  hideAnnModal();
+}
+
+function deleteAnnouncement(id){
+  if(!isAdmin()){ return; }
+  if(!confirm('确定要删除这条公告吗？')) return;
+  announcements = announcements.filter(function(a){ return String(a.id) !== String(id); });
+  // Supabase删除
+  if(supabaseEnabled && supabaseClient){
+    supabaseClient.from('announcements').delete().eq('id', id).then(function(){
+      saveAnnouncementsLocal();
+      renderAnnouncements();
+    });
+  } else {
+    saveAnnouncementsLocal();
+    renderAnnouncements();
+  }
+}
+
 // ==================== Initialize ====================
 refreshAll();
 updateSyncStatus();
+loadAnnouncements();
 </script>
 
 
@@ -1866,6 +2084,21 @@ updateSyncStatus();
     <button class="admin-close" onclick="hideAdminPanel()">关闭</button>
     <h3>用户管理</h3>
     <div id="usersListContainer"></div>
+  </div>
+</div>
+
+<!-- ===== 公告编辑弹窗 ===== -->
+<div class="ann-modal-overlay" id="annModalOverlay">
+  <div class="ann-modal">
+    <h3 id="annModalTitle">发布公告</h3>
+    <div class="form-group">
+      <label style="font-size:.85rem;color:#555;font-weight:600;display:block;margin-bottom:6px;">公告内容</label>
+      <textarea id="annContent" placeholder="请输入公告内容..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="hideAnnModal()">取消</button>
+      <button class="btn-save" id="annSaveBtn" onclick="saveAnnouncement()">发布</button>
+    </div>
   </div>
 </div>
 
