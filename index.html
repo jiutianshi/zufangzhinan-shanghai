@@ -235,10 +235,10 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 </div>
 
 <!-- Announcements -->
-<div class="announcement-section" id="announcementSection" style="display:none;">
+<div class="announcement-section" id="announcementSection">
   <div class="ann-header">
     <div class="ann-title">📢 站点公告</div>
-    <div class="ann-admin-bar" id="annAdminBar">
+    <div class="ann-admin-bar" id="annAdminBar" style="display:none;">
       <button onclick="showAnnModal()">+ 发布公告</button>
     </div>
   </div>
@@ -252,19 +252,6 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 <h3>公租房/保租房申请指南</h3>
 <p>上海公租房申请条件：持有《上海市居住证》或具有上海市户籍，在沪有稳定工作，人均住房建筑面积低于15平方米。保租房面向新市民、青年人，租金不高于同地段市场价的90%。</p>
 <p>闵行区公租房平台：<a href="https://zlzf.shmh.gov.cn" target="_blank">zlzf.shmh.gov.cn</a> &nbsp;|&nbsp; 上海住房租赁公共服务平台：<a href="https://zfzl.fgj.sh.gov.cn" target="_blank">zfzl.fgj.sh.gov.cn</a> &nbsp;|&nbsp; 临港新片区公租房：<a href="http://www.shlingang.com" target="_blank">shlingang.com</a></p>
-</div>
-
-<!-- Comment Section -->
-<div class="map-section">
-<h2>用户评论</h2>
-<div id="commentList" style="margin-bottom:16px;"></div>
-<div id="commentForm" style="display:none;border-top:1px solid #eee;padding-top:16px;">
-  <div style="display:flex;gap:8px;align-items:flex-start;">
-    <textarea id="commentInput" placeholder="发表你的评论..." style="flex:1;min-height:60px;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.9rem;resize:vertical;" maxlength="500"></textarea>
-    <button class="add-btn" onclick="submitComment()" style="white-space:nowrap;">发表评论</button>
-  </div>
-</div>
-<div id="commentLoginHint" style="color:#999;font-size:.85rem;text-align:center;padding:12px;">请登录后发表评论</div>
 </div>
 
 <!-- Table Section -->
@@ -394,6 +381,19 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 </div>
 </div>
 
+</div>
+
+<!-- Comment Section -->
+<div class="map-section">
+<h2>用户评论</h2>
+<div id="commentList" style="margin-bottom:16px;"></div>
+<div id="commentForm" style="display:none;border-top:1px solid #eee;padding-top:16px;">
+  <div style="display:flex;gap:8px;align-items:flex-start;">
+    <textarea id="commentInput" placeholder="发表你的评论..." style="flex:1;min-height:60px;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.9rem;resize:vertical;" maxlength="500"></textarea>
+    <button class="add-btn" onclick="submitComment()" style="white-space:nowrap;">发表评论</button>
+  </div>
+</div>
+<div id="commentLoginHint" style="color:#999;font-size:.85rem;text-align:center;padding:12px;">请登录后发表评论</div>
 </div>
 
 <footer>
@@ -2105,15 +2105,14 @@ function escapeHtml(str){
 
 // ==================== Initialize ====================
 // 页面加载时清除筛选条件，确保所有房源默认可见
-document.getElementById('lineFilter').value='';
-document.getElementById('typeFilter').value='';
-document.getElementById('keywordFilter').value='';
-var _initStatusEl = document.getElementById('filterStatus');
-if(_initStatusEl) _initStatusEl.style.display = 'none';
-refreshAll();
-updateSyncStatus();
-loadAnnouncements();
-refreshComments();
+try{ document.getElementById('lineFilter').value=''; }catch(e){}
+try{ document.getElementById('typeFilter').value=''; }catch(e){}
+try{ document.getElementById('keywordFilter').value=''; }catch(e){}
+try{ var _initStatusEl = document.getElementById('filterStatus'); if(_initStatusEl) _initStatusEl.style.display = 'none'; }catch(e){}
+try{ refreshAll(); }catch(e){ console.error('[Init] refreshAll failed:', e); }
+try{ updateSyncStatus(); }catch(e){ console.error('[Init] updateSyncStatus failed:', e); }
+try{ loadAnnouncements(); }catch(e){ console.error('[Init] loadAnnouncements failed:', e); }
+try{ refreshComments(); }catch(e){ console.error('[Init] refreshComments failed:', e); }
 </script>
 
 
