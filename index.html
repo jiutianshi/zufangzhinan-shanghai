@@ -1806,8 +1806,8 @@ function loadAnnouncements(){
     }
   }catch(e){ announcements = []; }
   // 如果Supabase可用，尝试从数据库加载
-  if(supabaseEnabled && supabaseClient){
-    supabaseClient.from('announcements').select('*').order('created_at',{ascending:false}).then(function(res){
+  if(supabaseEnabled && sb){
+    sb.from('announcements').select('*').order('created_at',{ascending:false}).then(function(res){
       if(!res.error && res.data && res.data.length > 0){
         announcements = res.data.map(function(row){
           return {
@@ -1913,8 +1913,8 @@ function saveAnnouncement(){
         ann.author = authorEmail;
         ann.createdAt = new Date().toISOString();
       }
-      if(supabaseEnabled && supabaseClient){
-        supabaseClient.from('announcements').update({
+      if(supabaseEnabled && sb){
+        sb.from('announcements').update({
           content: content,
           author_email: authorEmail,
           updated_at: new Date().toISOString()
@@ -1931,8 +1931,8 @@ function saveAnnouncement(){
         createdAt: new Date().toISOString()
       };
       announcements.unshift(newAnn);
-      if(supabaseEnabled && supabaseClient){
-        supabaseClient.from('announcements').insert({
+      if(supabaseEnabled && sb){
+        sb.from('announcements').insert({
           id: newId,
           content: content,
           author_email: authorEmail
@@ -1970,8 +1970,8 @@ function deleteAnnouncement(id){
   if(!confirm('确定要删除这条公告吗？')) return;
   announcements = announcements.filter(function(a){ return String(a.id) !== String(id); });
   // Supabase删除
-  if(supabaseEnabled && supabaseClient){
-    supabaseClient.from('announcements').delete().eq('id', id).then(function(){
+  if(supabaseEnabled && sb){
+    sb.from('announcements').delete().eq('id', id).then(function(){
       saveAnnouncementsLocal();
       renderAnnouncements();
     });
