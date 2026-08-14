@@ -254,21 +254,17 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 <p>闵行区公租房平台：<a href="https://zlzf.shmh.gov.cn" target="_blank">zlzf.shmh.gov.cn</a> &nbsp;|&nbsp; 上海住房租赁公共服务平台：<a href="https://zfzl.fgj.sh.gov.cn" target="_blank">zfzl.fgj.sh.gov.cn</a> &nbsp;|&nbsp; 临港新片区公租房：<a href="http://www.shlingang.com" target="_blank">shlingang.com</a></p>
 </div>
 
-<!-- Map Section -->
+<!-- Comment Section -->
 <div class="map-section">
-<h2>房源地图分布</h2>
-<div style="position:relative;">
-<div id="map"></div>
-<div class="legend">
-<h4>图例</h4>
-<div class="legend-item"><span class="legend-dot" style="background:#1565c0;"></span>工作地点</div>
-<div class="legend-item"><span class="legend-dot" style="background:#e91e63;"></span>公寓</div>
-<div class="legend-item"><span class="legend-dot" style="background:#5e35b1;"></span>住宅</div>
-<div class="legend-item"><span class="legend-dot" style="background:#f57c00;"></span>公租房</div>
-<div class="legend-item"><span class="legend-dot" style="background:#00897b;"></span>保租房</div>
+<h2>用户评论</h2>
+<div id="commentList" style="margin-bottom:16px;"></div>
+<div id="commentForm" style="display:none;border-top:1px solid #eee;padding-top:16px;">
+  <div style="display:flex;gap:8px;align-items:flex-start;">
+    <textarea id="commentInput" placeholder="发表你的评论..." style="flex:1;min-height:60px;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.9rem;resize:vertical;" maxlength="500"></textarea>
+    <button class="add-btn" onclick="submitComment()" style="white-space:nowrap;">发表评论</button>
+  </div>
 </div>
-
-</div>
+<div id="commentLoginHint" style="color:#999;font-size:.85rem;text-align:center;padding:12px;">请登录后发表评论</div>
 </div>
 
 <!-- Table Section -->
@@ -291,7 +287,7 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 <div class="table-wrap">
 <table>
 <thead>
-<tr><th>序号</th><th>区域</th><th>房源</th><th>月租</th><th>户型</th><th>面积</th><th>类型</th><th>地址</th><th>最近地铁</th><th>距地铁</th><th>联系/运营方</th><th>来源平台</th><th>配套设施</th><th>亮点特色</th><th>链接</th><th>发布者</th><th>发布时间</th><th class="col-action">操作</th></tr>
+<tr><th>序号</th><th>区域</th><th>房源</th><th>月租</th><th>户型</th><th>面积</th><th>类型</th><th>地址</th><th>最近地铁</th><th>距地铁</th><th>联系/运营方</th><th>来源平台</th><th>配套设施</th><th>亮点特色</th><th>备注</th><th>链接</th><th>发布者</th><th>发布时间</th><th class="col-action">操作</th></tr>
 </thead>
 <tbody id="tableBody"></tbody>
 </table>
@@ -389,7 +385,6 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 <div class="form-coords">
 <div class="form-group"><label>纬度 (lat)</label><input type="text" id="f_lat" placeholder="如：31.2113"></div>
 <div class="form-group"><label>经度 (lng)</label><input type="text" id="f_lng" placeholder="如：121.3213"></div>
-<button class="pick-coords-btn" id="pickBtn" onclick="togglePickCoords()">地图拾取坐标</button>
 <button class="geocode-btn" id="geoBtn" onclick="geocodeAddress()">地址定位</button>
 </div>
 <div class="form-actions">
@@ -554,6 +549,8 @@ function updateUIForRole(){
   refreshAll();
   // 刷新公告区域
   if(typeof renderAnnouncements === 'function') renderAnnouncements();
+  // 刷新评论区
+  if(typeof refreshComments === 'function') refreshComments();
 }
 
 // ===== 登录/注册/登出（邮箱）=====
@@ -996,18 +993,12 @@ var nanhuiLineStations = [
 
 var workplace = {name:"申昆路2699号",lat:31.2250,lng:121.3300};
 
-// ==================== Map Initialization ====================
-var map = L.map('map',{center:[31.10,121.45],zoom:10,zoomControl:true});
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
-  attribution:'&copy; CARTO &copy; OpenStreetMap',
-  subdomains:'abcd',
-  maxZoom:19
-}).addTo(map);
-
-var markerLayer = L.layerGroup().addTo(map);
-var stationLayer = L.layerGroup().addTo(map);
-var drawnItems = L.layerGroup().addTo(map);
-var drawRouteLayer = L.layerGroup().addTo(map);
+// ==================== Map Initialization (disabled) ====================
+var map = null;
+var markerLayer = null;
+var drawRouteLayer = null;
+var stationLayer = null;
+var drawnItems = null;
 var mapMarkers = [];
 
 // ==================== Marker Functions ====================
@@ -1028,49 +1019,7 @@ function getMarkerIcon(listing){
   return L.divIcon({html:html,className:'',iconSize:[28,28],iconAnchor:[14,28],popupAnchor:[0,-28]});
 }
 
-function renderMapMarkers(data){
-  markerLayer.clearLayers();
-  mapMarkers=[];
-  var list=data||getAllListings();
-  list.forEach(function(l){
-    if(!l.lat||!l.lng)return;
-    var marker=L.marker([l.lat,l.lng],{icon:getMarkerIcon(l),draggable:canEdit()});
-    var popupHtml='<div class="popup-card">'+
-      '<div class="popup-title">'+l.name+(l._overridden?'<span class="coord-override-badge">已修改</span>':'')+'</div>'+
-      '<div class="popup-price">'+l.priceStr+'</div>'+
-      '<div>区域：'+l.area+' | 类型：'+l.type+'</div>'+
-      '<div>户型：'+l.layout+' | 面积：'+l.area_size+'</div>'+
-      '<div>地址：'+l.address+'</div>'+
-      '<div>地铁：'+l.subway+'（'+l.subwayDist+'）</div>'+
-      '<div>联系：'+l.contact+'（'+l.company+'）</div>'+
-      '<div>来源：'+l.platform+' | '+l.payment+'</div>'+
-      '<div style="font-size:.7rem;color:#999;margin-top:4px;">坐标：'+l.lat.toFixed(4)+', '+l.lng.toFixed(4)+'</div>'+
-      (l.features&&l.features.length?'<div style="margin-top:4px;">'+l.features.map(function(f){return '<span class="feature-badge">'+f+'</span>';}).join('')+'</div>':'')+
-      (l.url?'<a class="popup-link" href="'+l.url+'" target="_blank">查看详情 &raquo;</a>':'')+
-      '<div style="margin-top:6px;"><button class="edit-btn" style="margin-right:0;" onclick="openEditModal('+l.id+')">编辑信息</button></div>'+
-      '</div>';
-    marker.bindPopup(popupHtml,{maxWidth:320});
-    marker.on('dragend',function(e){
-      var ll=e.target.getLatLng();
-      if(l.id<=1000){
-        // Original listing - save to overrides
-        if(!listingOverrides[l.id])listingOverrides[l.id]={};
-        listingOverrides[l.id].lat=ll.lat;
-        listingOverrides[l.id].lng=ll.lng;
-        saveOverrides();
-      }else{
-        // Custom listing - update directly
-        l.lat=ll.lat;l.lng=ll.lng;
-        saveCustomListings();
-      }
-    });
-    markerLayer.addLayer(marker);
-    mapMarkers.push({id:l.id,marker:marker});
-  });
-  // Workplace marker
-  var wpIcon=L.divIcon({html:'<div style="background:#1565c0;width:32px;height:32px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:bold;">★</div>',className:'',iconSize:[32,32],iconAnchor:[16,16]});
-  L.marker([workplace.lat,workplace.lng],{icon:wpIcon}).bindPopup('<div class="popup-card"><div class="popup-title">'+workplace.name+'</div></div>').addTo(markerLayer);
-}
+function renderMapMarkers(data){ /* map disabled */ }
 
 // ==================== Render Table ====================
 // ===== 分页状态 =====
@@ -1118,6 +1067,7 @@ function renderTable(data){
       '<td><span class="'+platformClass+'">'+l.platform+'</span></td>'+
       '<td style="max-width:180px;">'+facilitiesHtml+'</td>'+
       '<td style="max-width:200px;">'+featuresHtml+'</td>'+
+      '<td style="max-width:200px;font-size:.8rem;color:#666;">'+(l.notes||'-')+'</td>'+
       '<td>'+linkHtml+'</td>'+
       '<td style="font-size:.75rem;color:#666;">'+publisherHtml+'</td>'+
       '<td style="font-size:.75rem;color:#999;">'+publishTimeHtml+'</td>'+
@@ -1125,7 +1075,7 @@ function renderTable(data){
     tbody.appendChild(tr);
   });
   if(list.length===0){
-    tbody.innerHTML='<tr><td colspan="18" style="text-align:center;padding:30px;color:#999;">暂无房源数据</td></tr>';
+    tbody.innerHTML='<tr><td colspan="19" style="text-align:center;padding:30px;color:#999;">暂无房源数据</td></tr>';
   }
   
   // 渲染分页控制
@@ -1315,43 +1265,7 @@ function toggleForm(){
 
 // ==================== Pick Coords ====================
 var pickMode=false;
-function togglePickCoords(){
-  pickMode=!pickMode;
-  var btn=document.getElementById('pickBtn');
-  var hint=document.getElementById('pickHint');
-  if(pickMode){
-    btn.classList.add('active');
-    btn.textContent='点击地图拾取...';
-    hint.textContent='请在地图上点击目标位置拾取坐标';
-    hint.classList.add('show');
-    exitEditMode();
-  }else{
-    btn.classList.remove('active');
-    btn.textContent='地图拾取坐标';
-    hint.classList.remove('show');
-  }
-}
-
-map.on('click',function(e){
-  if(pickMode){
-    document.getElementById('f_lat').value=e.latlng.lat.toFixed(6);
-    document.getElementById('f_lng').value=e.latlng.lng.toFixed(6);
-    pickMode=false;
-    var btn=document.getElementById('pickBtn');
-    btn.classList.remove('active');
-    btn.textContent='地图拾取坐标';
-    document.getElementById('pickHint').classList.remove('show');
-    return;
-  }
-  if(drawMode==='addMarker'){
-    addDrawnMarker(e.latlng);
-    return;
-  }
-  if(drawMode==='deleteMarker'){
-    // handled by marker click
-    return;
-  }
-});
+function togglePickCoords(){ /* map disabled - use address geocode instead */ alert('地图已移除，请使用"地址定位"功能自动获取坐标'); }
 
 // ==================== Submit Listing ====================
 function submitListing(){
@@ -1669,20 +1583,7 @@ function setDrawMode(mode){
   }
 }
 
-// Draw mode click handler (integrated into main map click handler above)
-// Route drawing on double click
-map.on('dblclick',function(e){
-  if(drawMode==='drawRoute'){
-    routePoints.push([e.latlng.lat,e.latlng.lng]);
-    var dotIcon=L.divIcon({html:'<div style="background:#e91e63;width:10px;height:10px;border-radius:50%;border:2px solid #fff;"></div>',className:'',iconSize:[10,10],iconAnchor:[5,5]});
-    L.marker(e.latlng,{icon:dotIcon}).addTo(drawRouteLayer);
-    if(routePoints.length>=2){
-      if(routeLine){drawRouteLayer.removeLayer(routeLine);}
-      routeLine=L.polyline(routePoints,{color:'#e91e63',weight:3,opacity:.7,dashArray:'8,4'}).addTo(drawRouteLayer);
-    }
-    saveDrawings();
-  }
-});
+// Map event handlers disabled (map removed)
 
 function addDrawnMarker(latlng){
   var icon=L.divIcon({html:'<div style="background:#1565c0;width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:bold;">+</div>',className:'',iconSize:[24,24],iconAnchor:[12,12]});
@@ -1749,31 +1650,8 @@ function loadDrawings(){
   }catch(e){}
 }
 
-(function initDrawings(){
-  loadDrawings();
-})();
-
-// ==================== Delete drawn markers in delete mode ====================
-map.on('layeradd',function(e){
-  if(drawMode==='deleteMarker'&&e.layer!==map){
-    // Markers added in normal mode shouldn't be auto-deleted
-  }
-});
-
-drawnItems.on('click',function(e){
-  if(drawMode==='deleteMarker'){
-    drawnItems.removeLayer(e.layer);
-    saveDrawings();
-  }
-});
-
-drawRouteLayer.on('click',function(e){
-  if(drawMode==='deleteMarker'){
-    drawRouteLayer.removeLayer(e.layer);
-    if(e.layer===routeLine){routeLine=null;routePoints=[];}
-    saveDrawings();
-  }
-});
+// Drawings initialization disabled (map removed)
+// (function initDrawings(){ loadDrawings(); })();
 
 // ==================== Edit Modal ====================
 function openEditModal(id){
@@ -2151,6 +2029,80 @@ function deleteAnnouncement(id){
   }
 }
 
+// ==================== Comments ====================
+function loadComments(){
+  try{ return JSON.parse(localStorage.getItem('sh_rental_comments')||'[]'); }catch(e){ return []; }
+}
+function saveComments(comments){
+  localStorage.setItem('sh_rental_comments', JSON.stringify(comments));
+}
+function refreshComments(){
+  var comments = loadComments();
+  var listEl = document.getElementById('commentList');
+  var formEl = document.getElementById('commentForm');
+  var hintEl = document.getElementById('commentLoginHint');
+  if(!listEl) return;
+  // 显示/隐藏表单
+  if(currentUser){
+    if(formEl) formEl.style.display = '';
+    if(hintEl) hintEl.style.display = 'none';
+  } else {
+    if(formEl) formEl.style.display = 'none';
+    if(hintEl) hintEl.style.display = '';
+  }
+  // 渲染评论列表
+  if(comments.length === 0){
+    listEl.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">暂无评论，快来发表第一条吧</div>';
+    return;
+  }
+  // 按时间倒序
+  comments.sort(function(a,b){ return new Date(b.createdAt) - new Date(a.createdAt); });
+  var html = comments.map(function(c){
+    var initials = (c.userEmail||'匿').charAt(0).toUpperCase();
+    var timeStr = formatDateTime(c.createdAt);
+    var delBtn = isAdmin() ? '<button class="del-btn" style="margin-left:8px;padding:2px 8px;font-size:.75rem;" onclick="deleteComment('+c.id+')">删除</button>' : '';
+    return '<div style="display:flex;gap:10px;padding:12px 0;border-bottom:1px solid #f0f0f0;">'+
+      '<div style="width:36px;height:36px;border-radius:50%;background:#1565c0;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold;flex-shrink:0;">'+initials+'</div>'+
+      '<div style="flex:1;">'+
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'+
+          '<span style="font-weight:600;font-size:.9rem;">'+(c.userEmail||'匿名用户')+'</span>'+
+          '<span style="font-size:.75rem;color:#999;">'+timeStr+'</span>'+
+          delBtn+
+        '</div>'+
+        '<div style="font-size:.9rem;color:#333;line-height:1.5;">'+escapeHtml(c.content)+'</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+  listEl.innerHTML = html;
+}
+function submitComment(){
+  if(!currentUser){ alert('请先登录后再评论'); return; }
+  var input = document.getElementById('commentInput');
+  var content = input.value.trim();
+  if(!content){ alert('请输入评论内容'); return; }
+  var comments = loadComments();
+  comments.push({
+    id: Date.now(),
+    userEmail: currentUser.email || currentUser.phone || '匿名用户',
+    content: content,
+    createdAt: new Date().toISOString()
+  });
+  saveComments(comments);
+  input.value = '';
+  refreshComments();
+}
+function deleteComment(id){
+  if(!isAdmin()){ alert('只有管理员可以删除评论'); return; }
+  if(!confirm('确定删除这条评论吗？')) return;
+  var comments = loadComments();
+  comments = comments.filter(function(c){ return c.id !== id; });
+  saveComments(comments);
+  refreshComments();
+}
+function escapeHtml(str){
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 // ==================== Initialize ====================
 // 页面加载时清除筛选条件，确保所有房源默认可见
 document.getElementById('lineFilter').value='';
@@ -2161,6 +2113,7 @@ if(_initStatusEl) _initStatusEl.style.display = 'none';
 refreshAll();
 updateSyncStatus();
 loadAnnouncements();
+refreshComments();
 </script>
 
 
