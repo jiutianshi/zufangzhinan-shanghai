@@ -315,7 +315,7 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 <div class="form-group"><label>面积</label><input type="text" id="f_area_size" placeholder="如：39㎡"></div>
 <div class="form-group"><label>类型 *</label><select id="f_type"><option value="公寓">公寓</option><option value="住宅">住宅</option><option value="公租房">公租房</option><option value="保租房">保租房</option></select></div>
 <div class="form-group"><label>区域 *</label><select id="f_area"><option value="虹桥区域">虹桥区域</option><option value="市域机场线">市域机场线</option><option value="南汇支线">南汇支线</option><option value="公租房/保租房">公租房/保租房</option></select></div>
-<div class="form-group"><label>地址</label><input type="text" id="f_address" placeholder="如：闵行区申虹路929弄"></div>
+<div class="form-group"><label>地址</label><input type="text" id="f_address" placeholder="如：闵行区申虹路929弄" onblur="autoGeocode()"></div>
 <div class="form-group"><label>最近地铁</label><input type="text" id="f_subway" placeholder="如：10号线虹桥火车站"></div>
 <div class="form-group"><label>距地铁</label><input type="text" id="f_subwayDist" placeholder="如：500米"></div>
 <div class="form-group"><label>联系人</label><input type="text" id="f_contact" placeholder="如：王先生"></div>
@@ -1558,24 +1558,56 @@ function clearAllCustom(){
 }
 
 // ==================== Geocode ====================
-function geocodeAddress(){
+var _geocodeTimer = null;
+function autoGeocode(){
   var address=document.getElementById('f_address').value.trim();
-  if(!address){alert('请先填写地址');return;}
-  var url='https://nominatim.openstreetmap.org/search?format=json&q='+encodeURIComponent(address+' 上海');
+  if(!address) return;
+  // 延迟执行，避免频繁请求
+  clearTimeout(_geocodeTimer);
+  _geocodeTimer = setTimeout(function(){ geocodeAddress(true); }, 300);
+}
+function geocodeAddress(silent){
+  var address=document.getElementById('f_address').value.trim();
+  if(!address){ if(!silent) alert('请先填写地址'); return; }
+  var geoBtn=document.getElementById('geoBtn');
+  if(geoBtn){ geoBtn.textContent='定位中...'; geoBtn.disabled=true; }
+  var url='https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(address+' 上海 中国');
   fetch(url,{headers:{'Accept':'application/json'}})
     .then(function(r){return r.json();})
     .then(function(data){
+      if(geoBtn){ geoBtn.textContent='地址定位'; geoBtn.disabled=false; }
       if(data&&data.length>0){
         document.getElementById('f_lat').value=parseFloat(data[0].lat).toFixed(6);
         document.getElementById('f_lng').value=parseFloat(data[0].lon).toFixed(6);
-        alert('地址定位成功：'+data[0].display_name);
+        if(!silent) alert('地址定位成功：'+data[0].display_name);
+        // 显示定位成功提示
+        showGeoStatus(true, '定位成功');
       }else{
-        alert('未能找到该地址的坐标，请尝试在地图上手动拾取');
+        if(!silent) alert('未能找到该地址的坐标，请尝试在地图上手动拾取');
+        showGeoStatus(false, '未找到');
       }
     })
     .catch(function(e){
-      alert('地址定位失败，请检查网络或手动拾取坐标');
+      if(geoBtn){ geoBtn.textContent='地址定位'; geoBtn.disabled=false; }
+      if(!silent) alert('地址定位失败，请检查网络或手动拾取坐标');
+      showGeoStatus(false, '定位失败');
     });
+}
+function showGeoStatus(ok, msg){
+  var latEl=document.querySelector('label[for]'); 
+  var coordsEl=document.querySelector('.form-coords');
+  if(!coordsEl) return;
+  var badge=coordsEl.querySelector('.geo-status');
+  if(!badge){
+    badge=document.createElement('span');
+    badge.className='geo-status';
+    badge.style.cssText='font-size:.75rem;padding:2px 8px;border-radius:4px;margin-left:8px;display:inline-block;';
+    coordsEl.appendChild(badge);
+  }
+  badge.textContent=msg;
+  badge.style.background=ok?'#e8f5e9':'#ffebee';
+  badge.style.color=ok?'#2e7d32':'#c62828';
+  setTimeout(function(){ if(badge) badge.style.display='none'; }, 5000);
 }
 
 // ==================== Draw Mode ====================
