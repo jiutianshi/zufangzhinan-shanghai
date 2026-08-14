@@ -133,6 +133,8 @@ tbody tr:hover{background:#f5f9ff;}
 #clearForm:hover{background:#d0d0d0;}
 .del-btn{background:#e53935;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.78rem;transition:all .2s;}
 .del-btn:hover{background:#c62828;}
+.comment-del-btn{margin-left:8px;padding:4px 12px;font-size:.75rem;background:transparent;color:#e53935;border:1px solid #ffcdd2;border-radius:6px;cursor:pointer;transition:all .2s;}
+.comment-del-btn:hover{background:#ffebee;border-color:#e53935;}
 .edit-btn{background:#1565c0;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.78rem;transition:all .2s;margin-right:4px;}
 .edit-btn:hover{background:#0d47a1;}
 .coord-override-badge{display:inline-block;background:#fff3e0;color:#e65100;padding:1px 6px;border-radius:8px;font-size:.7rem;margin-left:4px;border:1px solid #ffb74d;}
@@ -388,10 +390,11 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 <h2>用户评论</h2>
 <div id="commentList" style="margin-bottom:16px;"></div>
 <div id="commentForm" style="display:none;border-top:1px solid #eee;padding-top:16px;">
-  <div style="display:flex;gap:8px;align-items:flex-start;">
-    <textarea id="commentInput" placeholder="发表你的评论..." style="flex:1;min-height:60px;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.9rem;resize:vertical;" maxlength="500"></textarea>
-    <button class="add-btn" onclick="submitComment()" style="white-space:nowrap;">发表评论</button>
+  <div style="display:flex;gap:10px;align-items:flex-end;">
+    <textarea id="commentInput" placeholder="发表你的评论..." style="flex:1;min-height:60px;max-height:200px;padding:12px 14px;border:1px solid #e0e0e0;border-radius:8px;font-size:.9rem;resize:vertical;transition:border-color .2s;outline:none;font-family:inherit;" maxlength="500" onfocus="this.style.borderColor='#1565c0'" onblur="this.style.borderColor='#e0e0e0'"></textarea>
+    <button onclick="submitComment()" style="white-space:nowrap;padding:12px 24px;background:#1565c0;color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer;transition:background .2s;letter-spacing:.5px;" onmouseover="this.style.background='#0d47a1'" onmouseout="this.style.background='#1565c0'">发表评论</button>
   </div>
+  <div style="text-align:right;font-size:.75rem;color:#bbb;margin-top:4px;">最多500字</div>
 </div>
 <div id="commentLoginHint" style="color:#999;font-size:.85rem;text-align:center;padding:12px;">请登录后发表评论</div>
 </div>
@@ -2060,7 +2063,7 @@ function refreshComments(){
   var html = comments.map(function(c){
     var initials = (c.userEmail||'匿').charAt(0).toUpperCase();
     var timeStr = formatDateTime(c.createdAt);
-    var delBtn = isAdmin() ? '<button class="del-btn" style="margin-left:8px;padding:2px 8px;font-size:.75rem;" onclick="deleteComment('+c.id+')">删除</button>' : '';
+    var delBtn = isAdmin() ? '<button class="comment-del-btn" onclick="deleteComment('+c.id+')">删除</button>' : '';
     return '<div style="display:flex;gap:10px;padding:12px 0;border-bottom:1px solid #f0f0f0;">'+
       '<div style="width:36px;height:36px;border-radius:50%;background:#1565c0;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold;flex-shrink:0;">'+initials+'</div>'+
       '<div style="flex:1;">'+
