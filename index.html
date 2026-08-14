@@ -183,8 +183,10 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 /* 登录注册模态框 */
 .auth-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:2000;align-items:center;justify-content:center;}
 .auth-modal.show{display:flex;}
-.auth-modal-box{background:#fff;border-radius:12px;padding:32px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+.auth-modal-box{position:relative;background:#fff;border-radius:12px;padding:32px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,.2);}
 .auth-modal-box h3{color:#0d47a1;margin-bottom:20px;text-align:center;font-size:1.3rem;}
+.auth-close-btn{position:absolute;top:12px;right:12px;width:32px;height:32px;border:none;background:#f5f5f5;border-radius:50%;cursor:pointer;font-size:1.2rem;color:#666;display:flex;align-items:center;justify-content:center;transition:all .2s;z-index:1;}
+.auth-close-btn:hover{background:#e0e0e0;color:#333;}
 .auth-modal-box .form-group{margin-bottom:16px;}
 .auth-modal-box label{display:block;margin-bottom:6px;font-size:.85rem;color:#555;font-weight:600;}
 .auth-modal-box input{width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-size:.9rem;outline:none;transition:border .2s;}
@@ -273,9 +275,10 @@ footer{text-align:center;padding:20px;color:#999;font-size:.8rem;}
 <div class="table-section">
 <h2>房源详情列表</h2>
 <div class="filter-bar">
-<select id="lineFilter"><option value="">全部区域</option><option value="虹桥区域">虹桥区域</option><option value="市域机场线">市域机场线</option><option value="南汇支线">南汇支线</option><option value="公租房/保租房">公租房/保租房</option></select>
-<select id="typeFilter"><option value="">全部类型</option><option value="公寓">公寓</option><option value="住宅">住宅</option><option value="公租房">公租房</option><option value="保租房">保租房</option></select>
-<input type="text" id="keywordFilter" placeholder="搜索房源名/地址/地铁..." style="flex:1;min-width:200px;">
+<select id="lineFilter" autocomplete="off" onchange="applyFilters()"><option value="">全部区域</option><option value="虹桥区域">虹桥区域</option><option value="市域机场线">市域机场线</option><option value="南汇支线">南汇支线</option><option value="公租房/保租房">公租房/保租房</option></select>
+<select id="typeFilter" autocomplete="off" onchange="applyFilters()"><option value="">全部类型</option><option value="公寓">公寓</option><option value="住宅">住宅</option><option value="公租房">公租房</option><option value="保租房">保租房</option></select>
+<input type="text" id="keywordFilter" autocomplete="off" placeholder="搜索房源名/地址/地铁..." style="flex:1;min-width:200px;" oninput="debounceFilter()">
+<span id="filterStatus" style="font-size:.8rem;color:#1565c0;font-weight:600;display:none;"></span>
 <button class="applyFilters" onclick="applyFilters()">筛选</button>
 <button class="resetFilters" onclick="resetFilters()">重置</button>
 <button class="add-btn" id="toggleForm" onclick="toggleForm()">+ 添加房源</button>
@@ -483,7 +486,7 @@ function canDelete(id){
     if(!supabaseEnabled) return true; // 离线模式允许删除所有自定义房源
     // 编辑者只能删除自己发布的自定义房源
     var listing = getOriginalListing(id);
-    return listing && listing.id>1000 && listing.createdBy === (currentUser?currentUser.id:'');
+    return listing && (listing.isCustom||listing.id>1000) && listing.createdBy === (currentUser?currentUser.id:'');
   }
   return false;
 }
@@ -823,7 +826,9 @@ function saveCustomListings(){
     // Supabase: upsert all custom listings
     sb.from('custom_listings').upsert(customListings.map(function(l){
       return {id:l.id, data:l, created_by:l.createdBy||null};
-    })).then(function(){});
+    })).then(function(res){
+      if(res.error) console.warn('[Supabase] saveCustomListings error:', res.error.message);
+    });
   }
   try{localStorage.setItem('sh_rental_custom',JSON.stringify(customListings));}catch(e){}
 }
@@ -838,6 +843,8 @@ function saveDeletedIds(){
 }
 
 var customListings = loadCustomListings();
+// 为本地存储的旧数据补充 isCustom 标记
+customListings.forEach(function(l){ if(l && !l.isCustom) l.isCustom = (l.id>1000); });
 var deletedIds = loadDeletedIds();
 var nextCustomId = (function(){
   var max=1000;
@@ -863,12 +870,16 @@ if(supabaseEnabled && sb){
   sb.from('custom_listings').select('data').then(function(res){
     if(res.data && res.data.length){
       customListings = res.data.map(function(r){return r.data;});
+      // 为从云端加载的房源补充 isCustom 标记
+      customListings.forEach(function(l){ if(l && !l.isCustom) l.isCustom = (l.id>1000); });
       nextCustomId = (function(){
         var max=1000;
         customListings.forEach(function(l){if(l.id>max)max=l.id;});
         return max+1;
       })();
       if(typeof refreshAll==='function') refreshAll();
+    } else if(res.error){
+      console.warn('[Supabase] custom_listings initial load error:', res.error.message);
     }
   });
   // 从云端加载删除列表和覆盖
@@ -885,9 +896,18 @@ if(supabaseEnabled && sb){
   sb.channel('custom_listings_changes')
     .on('postgres_changes',{event:'*',schema:'public',table:'custom_listings'},function(payload){
       sb.from('custom_listings').select('data').then(function(res){
-        if(res.data){
+        if(res.data && res.data.length){
           customListings = res.data.map(function(r){return r.data;});
+          // 为从云端加载的房源补充 isCustom 标记
+          customListings.forEach(function(l){ if(l && !l.isCustom) l.isCustom = (l.id>1000); });
+          nextCustomId = (function(){
+            var max=1000;
+            customListings.forEach(function(l){if(l.id>max)max=l.id;});
+            return max+1;
+          })();
           if(typeof refreshAll==='function') refreshAll();
+        } else if(res.error){
+          console.warn('[Supabase] custom_listings select error:', res.error.message);
         }
       });
     }).subscribe();
@@ -988,7 +1008,7 @@ function getMarkerColor(listing){
 
 function getMarkerIcon(listing){
   var color=getMarkerColor(listing);
-  var isCustom=listing.id>1000;
+  var isCustom=listing.isCustom||listing.id>1000;
   var star=isCustom?'★':'';
   var html='<div style="background:'+color+';width:28px;height:28px;border-radius:50% 50% 50% 0;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.3);transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;">'+
     '<span style="transform:rotate(45deg);color:#fff;font-size:11px;font-weight:bold;">'+star+'</span></div>';
@@ -1067,13 +1087,13 @@ function renderTable(data){
     var editBtnHtml = canEditListing(l) ? '<button class="edit-btn" onclick="openEditModal('+l.id+')">编辑</button>' : '';
     var delBtnHtml = canDeleteListing(l) ? '<button class="del-btn" data-id="'+l.id+'" onclick="deleteListing('+l.id+')">删除</button>' : '';
     // 发布者信息
-    var publisherHtml = l.createdByEmail ? l.createdByEmail : (l.id>1000 ? '自定义' : '系统导入');
+    var publisherHtml = l.createdByEmail ? l.createdByEmail : ((l.isCustom||l.id>1000) ? '手动录入' : '系统导入');
     // 发布时间
     var publishTimeHtml = l.createdAt ? formatDateTime(l.createdAt) : '-';
     tr.innerHTML=
       '<td>'+(startIdx+idx+1)+'</td>'+
       '<td>'+l.area+'</td>'+
-      '<td>'+l.name+(l.id>1000?' <span class="feature-badge" style="background:#c8e6c9;color:#2e7d32;">自定义</span>':'')+'</td>'+
+      '<td>'+l.name+'</td>'+
       '<td style="color:#e4393c;font-weight:600;">'+l.priceStr+'</td>'+
       '<td>'+l.layout+'</td>'+
       '<td>'+l.area_size+'</td>'+
@@ -1172,7 +1192,7 @@ function canEditListing(l){
   if(userRole==='editor'){
     if(!supabaseEnabled) return true; // 离线模式
     // 编辑者只能编辑自己发布的房源
-    return l.id > 1000 && l.createdBy === (currentUser ? currentUser.id : '');
+    return (l.isCustom||l.id>1000) && l.createdBy === (currentUser ? currentUser.id : '');
   }
   return false;
 }
@@ -1183,7 +1203,7 @@ function canDeleteListing(l){
   if(userRole==='editor'){
     if(!supabaseEnabled) return true; // 离线模式
     // 编辑者只能删除自己发布的房源
-    return l.id > 1000 && l.createdBy === (currentUser ? currentUser.id : '');
+    return (l.isCustom||l.id>1000) && l.createdBy === (currentUser ? currentUser.id : '');
   }
   return false;
 }
@@ -1208,6 +1228,11 @@ function refreshAll(){
 }
 
 // ==================== Filter Functions ====================
+var _filterTimer = null;
+function debounceFilter(){
+  if(_filterTimer) clearTimeout(_filterTimer);
+  _filterTimer = setTimeout(function(){ applyFilters(); }, 300);
+}
 function applyFilters(){
   var lineFilter=document.getElementById('lineFilter').value;
   var typeFilter=document.getElementById('typeFilter').value;
@@ -1226,6 +1251,17 @@ function applyFilters(){
   updateStats(filtered);
   renderTable(filtered);
   renderMapMarkers(filtered);
+  // 更新筛选状态指示器
+  var activeCount = (lineFilter?1:0) + (typeFilter?1:0) + (kw?1:0);
+  var statusEl = document.getElementById('filterStatus');
+  if(statusEl){
+    if(activeCount>0){
+      statusEl.textContent = '筛选中（'+activeCount+'个条件）· 共'+filtered.length+'条';
+      statusEl.style.display = '';
+    } else {
+      statusEl.style.display = 'none';
+    }
+  }
 }
 
 function resetFilters(){
@@ -1234,6 +1270,8 @@ function resetFilters(){
   document.getElementById('keywordFilter').value='';
   currentPage = 1;
   refreshAll();
+  var statusEl = document.getElementById('filterStatus');
+  if(statusEl) statusEl.style.display = 'none';
 }
 
 // ==================== Table Click Handler ====================
@@ -1325,6 +1363,7 @@ function submitListing(){
   features=features.concat(customFeats);
   var listing={
     id:nextCustomId++,
+    isCustom:true,
     area:area,
     name:name,
     price:parseInt(price),
@@ -1484,7 +1523,7 @@ function exportData(){
       '配套设施':(l.facilities||[]).join('、'),
       '亮点特色':(l.features||[]).join('、'),
       '链接':l.url||'',
-      '发布者':l.createdByEmail||(l.id>1000?'自定义':'系统导入'),
+      '发布者':l.createdByEmail||((l.isCustom||l.id>1000)?'手动录入':'系统导入'),
       '发布时间':l.createdAt?formatDateTime(l.createdAt):'-',
       '付款方式':l.payment||'',
       '备注':l.notes||''
@@ -2015,6 +2054,12 @@ function deleteAnnouncement(id){
 }
 
 // ==================== Initialize ====================
+// 页面加载时清除筛选条件，确保所有房源默认可见
+document.getElementById('lineFilter').value='';
+document.getElementById('typeFilter').value='';
+document.getElementById('keywordFilter').value='';
+var _initStatusEl = document.getElementById('filterStatus');
+if(_initStatusEl) _initStatusEl.style.display = 'none';
 refreshAll();
 updateSyncStatus();
 loadAnnouncements();
@@ -2069,8 +2114,9 @@ loadAnnouncements();
 </div>
 
 <!-- ===== 登录/注册模态框 ===== -->
-<div class="auth-modal" id="authModal" data-mode="login">
+<div class="auth-modal" id="authModal" data-mode="login" onclick="if(event.target===this)hideAuthModal()">
   <div class="auth-modal-box">
+    <button class="auth-close-btn" onclick="hideAuthModal()" title="关闭">&times;</button>
     <h3 id="authTitle">登录</h3>
     <!-- 邮箱登录区域 -->
     <div id="authEmailSection">
@@ -2103,8 +2149,9 @@ loadAnnouncements();
 </div>
 
 <!-- ===== 密码重置模态框 ===== -->
-<div class="auth-modal" id="resetModal">
+<div class="auth-modal" id="resetModal" onclick="if(event.target===this)hideResetModal()">
   <div class="auth-modal-box">
+    <button class="auth-close-btn" onclick="hideResetModal()" title="关闭">&times;</button>
     <h3>重置密码</h3>
     <div class="form-group">
       <label>注册邮箱</label>
