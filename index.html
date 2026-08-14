@@ -942,6 +942,7 @@ function getAllListings(){
     var copy=JSON.parse(JSON.stringify(l));
     if(listingOverrides[l.id]){
       var ov=listingOverrides[l.id];
+      if(ov.name)copy.name=ov.name;
       if(ov.lat)copy.lat=ov.lat;
       if(ov.lng)copy.lng=ov.lng;
       if(ov.address)copy.address=ov.address;
@@ -950,6 +951,18 @@ function getAllListings(){
       if(ov.contact)copy.contact=ov.contact;
       if(ov.price)copy.price=ov.price;
       if(ov.priceStr)copy.priceStr=ov.priceStr;
+      if(ov.layout)copy.layout=ov.layout;
+      if(ov.area_size)copy.area_size=ov.area_size;
+      if(ov.type)copy.type=ov.type;
+      if(ov.area)copy.area=ov.area;
+      if(ov.company)copy.company=ov.company;
+      if(ov.platform)copy.platform=ov.platform;
+      if(ov.platformClass)copy.platformClass=ov.platformClass;
+      if(ov.url)copy.url=ov.url;
+      if(ov.payment)copy.payment=ov.payment;
+      if(ov.facilities)copy.facilities=ov.facilities;
+      if(ov.features)copy.features=ov.features;
+      if(ov.notes)copy.notes=ov.notes;
       copy._overridden=true;
     }
     all.push(copy);
@@ -1774,6 +1787,7 @@ function openEditModal(id){
   editingId=id;
   var current=getAllListings().filter(function(l){return l.id===id;})[0]||listing;
   document.getElementById('editName').textContent=listing.name;
+  document.getElementById('editNameInput').value=current.name||'';
   document.getElementById('editLat').value=current.lat||'';
   document.getElementById('editLng').value=current.lng||'';
   document.getElementById('editAddress').value=current.address||'';
@@ -1781,6 +1795,17 @@ function openEditModal(id){
   document.getElementById('editSubwayDist').value=current.subwayDist||'';
   document.getElementById('editContact').value=current.contact||'';
   document.getElementById('editPrice').value=current.price||'';
+  document.getElementById('editLayout').value=current.layout&&current.layout!=='-'?current.layout:'';
+  document.getElementById('editAreaSize').value=current.area_size&&current.area_size!=='-'?current.area_size.replace(/m²|㎡/g,''):'';
+  document.getElementById('editType').value=current.type||'公寓';
+  document.getElementById('editArea').value=current.area||'虹桥区域';
+  document.getElementById('editCompany').value=current.company&&current.company!=='-'?current.company:'';
+  document.getElementById('editPlatform').value=current.platform||'其他';
+  document.getElementById('editUrl').value=current.url||'';
+  document.getElementById('editPayment').value=current.payment&&current.payment!=='-'?current.payment:'';
+  document.getElementById('editFacilities').value=Array.isArray(current.facilities)?current.facilities.join(','):'';
+  document.getElementById('editFeatures').value=Array.isArray(current.features)?current.features.join(','):'';
+  document.getElementById('editNotes').value=current.notes||'';
   var resetBtn=document.getElementById('resetBtn');
   if(id<=1000&&listingOverrides[id]){
     resetBtn.style.display='inline-block';
@@ -1797,6 +1822,7 @@ function closeEditModal(){
 
 function saveListingEdit(){
   if(editingId===null)return;
+  var name=document.getElementById('editNameInput').value.trim();
   var lat=parseFloat(document.getElementById('editLat').value);
   var lng=parseFloat(document.getElementById('editLng').value);
   var address=document.getElementById('editAddress').value.trim();
@@ -1804,37 +1830,74 @@ function saveListingEdit(){
   var subwayDist=document.getElementById('editSubwayDist').value.trim();
   var contact=document.getElementById('editContact').value.trim();
   var priceVal=document.getElementById('editPrice').value.trim();
+  var layout=document.getElementById('editLayout').value.trim();
+  var areaSizeVal=document.getElementById('editAreaSize').value.trim();
+  var typeVal=document.getElementById('editType').value;
+  var areaVal=document.getElementById('editArea').value;
+  var company=document.getElementById('editCompany').value.trim();
+  var platformVal=document.getElementById('editPlatform').value;
+  var urlVal=document.getElementById('editUrl').value.trim();
+  var payment=document.getElementById('editPayment').value.trim();
+  var facilitiesVal=document.getElementById('editFacilities').value.trim();
+  var featuresVal=document.getElementById('editFeatures').value.trim();
+  var notes=document.getElementById('editNotes').value.trim();
+  // 处理面积自动补单位
+  var areaSize=areaSizeVal?(areaSizeVal.match(/^[\d.]+$/)?areaSizeVal+'m²':areaSizeVal):'-';
+  // 处理价格
+  function parsePrice(v){
+    var m=v.match(/^(\d+)\s*[-~～]\s*(\d+)$/)||v.match(/^(\d+)$/);
+    if(!m)return null;
+    return{price:parseInt(m[1]),priceStr:m[2]?(parseInt(m[1])+'-'+parseInt(m[2])+'元/月'):(parseInt(m[1])+'元/月')};
+  }
+  var platformClassMap={'58同城':'platform-58','安居客':'platform-anjuke','自如':'platform-ziroom','Wellcee':'platform-wellcee','诸葛找房':'platform-zhuge','闵行公租房平台':'platform-gov','浦东公租房':'platform-gov','临港保租房':'platform-gov','上海住房租赁平台':'platform-gov','其他':''};
   if(editingId<=1000){
     // Original listing - save to overrides
     if(!listingOverrides[editingId])listingOverrides[editingId]={};
-    if(!isNaN(lat))listingOverrides[editingId].lat=lat;
-    if(!isNaN(lng))listingOverrides[editingId].lng=lng;
-    if(address)listingOverrides[editingId].address=address;
-    if(subway)listingOverrides[editingId].subway=subway;
-    if(subwayDist)listingOverrides[editingId].subwayDist=subwayDist;
-    if(contact)listingOverrides[editingId].contact=contact;
-    if(priceVal){
-      var pMatch=priceVal.match(/^(\d+)\s*[-~～]\s*(\d+)$/)||priceVal.match(/^(\d+)$/);
-      if(pMatch){
-        listingOverrides[editingId].price=parseInt(pMatch[1]);
-        listingOverrides[editingId].priceStr=pMatch[2]?(parseInt(pMatch[1])+'-'+parseInt(pMatch[2])+'元/月'):(parseInt(pMatch[1])+'元/月');
-      }
-    }
+    var ov=listingOverrides[editingId];
+    if(name)ov.name=name;
+    if(!isNaN(lat))ov.lat=lat;
+    if(!isNaN(lng))ov.lng=lng;
+    if(address)ov.address=address;
+    if(subway)ov.subway=subway;
+    if(subwayDist)ov.subwayDist=subwayDist;
+    if(contact)ov.contact=contact;
+    if(layout)ov.layout=layout;
+    if(areaSize&&areaSize!=='-')ov.area_size=areaSize;
+    if(typeVal)ov.type=typeVal;
+    if(areaVal)ov.area=areaVal;
+    if(company)ov.company=company;
+    if(platformVal){ov.platform=platformVal;ov.platformClass=platformClassMap[platformVal]||'';}
+    if(urlVal)ov.url=urlVal;
+    if(payment)ov.payment=payment;
+    if(facilitiesVal)ov.facilities=facilitiesVal.split(/[,，]/).map(function(s){return s.trim();}).filter(Boolean);
+    if(featuresVal)ov.features=featuresVal.split(/[,，]/).map(function(s){return s.trim();}).filter(Boolean);
+    if(notes)ov.notes=notes;
+    if(priceVal){var pp=parsePrice(priceVal);if(pp){ov.price=pp.price;ov.priceStr=pp.priceStr;}}
     saveOverrides();
   }else{
     // Custom listing - update directly
     for(var i=0;i<customListings.length;i++){
       if(customListings[i].id===editingId){
-        if(!isNaN(lat))customListings[i].lat=lat;
-        if(!isNaN(lng))customListings[i].lng=lng;
-        if(address)customListings[i].address=address;
-        if(subway)customListings[i].subway=subway;
-        if(subwayDist)customListings[i].subwayDist=subwayDist;
-        if(contact)customListings[i].contact=contact;
-        if(priceVal){
-          var pN=priceVal.match(/^(\d+)\s*[-~～]\s*(\d+)$/)||priceVal.match(/^(\d+)$/);
-          if(pN){customListings[i].price=parseInt(pN[1]);customListings[i].priceStr=pN[2]?(parseInt(pN[1])+'-'+parseInt(pN[2])+'元/月'):(parseInt(pN[1])+'元/月');}
-        }
+        var c=customListings[i];
+        if(name)c.name=name;
+        if(!isNaN(lat))c.lat=lat;
+        if(!isNaN(lng))c.lng=lng;
+        if(address)c.address=address;
+        if(subway)c.subway=subway;
+        if(subwayDist)c.subwayDist=subwayDist;
+        if(contact)c.contact=contact;
+        if(layout)c.layout=layout;
+        if(areaSize&&areaSize!=='-')c.area_size=areaSize;
+        if(typeVal)c.type=typeVal;
+        if(areaVal)c.area=areaVal;
+        if(company)c.company=company;
+        if(platformVal){c.platform=platformVal;c.platformClass=platformClassMap[platformVal]||'';}
+        if(urlVal)c.url=urlVal;
+        if(payment)c.payment=payment;
+        if(facilitiesVal)c.facilities=facilitiesVal.split(/[,，]/).map(function(s){return s.trim();}).filter(Boolean);
+        if(featuresVal)c.features=featuresVal.split(/[,，]/).map(function(s){return s.trim();}).filter(Boolean);
+        if(notes)c.notes=notes;
+        if(priceVal){var pp2=parsePrice(priceVal);if(pp2){c.price=pp2.price;c.priceStr=pp2.priceStr;}}
         break;
       }
     }
@@ -2103,40 +2166,33 @@ loadAnnouncements();
 
 <!-- ===== 编辑坐标模态框 ===== -->
 <div class="modal-overlay" id="editModal">
-  <div class="modal-box">
+  <div class="modal-box" style="max-width:700px;max-height:90vh;overflow-y:auto;">
     <h3>修改房源信息</h3>
     <span class="editing-name" id="editName"></span>
-    <div class="form-row">
-      <label>纬度 (lat)</label>
-      <input type="number" id="editLat" step="0.0001" placeholder="如：31.2000">
+    <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;">
+      <div class="form-group"><label>房源名称</label><input type="text" id="editNameInput" placeholder="如：虹桥天地公寓"></div>
+      <div class="form-group"><label>月租（元/月）</label><input type="text" id="editPrice" placeholder="如：2000 或 2000-3000"></div>
+      <div class="form-group"><label>户型</label><input type="text" id="editLayout" placeholder="如：1室1厅1卫"></div>
+      <div class="form-group"><label>面积（m²）</label><input type="text" id="editAreaSize" placeholder="如：39"></div>
+      <div class="form-group"><label>类型</label><select id="editType"><option value="公寓">公寓</option><option value="住宅">住宅</option><option value="公租房">公租房</option><option value="保租房">保租房</option></select></div>
+      <div class="form-group"><label>区域</label><select id="editArea"><option value="虹桥区域">虹桥区域</option><option value="市域机场线">市域机场线</option><option value="南汇支线">南汇支线</option><option value="公租房/保租房">公租房/保租房</option></select></div>
+      <div class="form-group"><label>地址</label><input type="text" id="editAddress" placeholder="如：闵行区申虹路929弄"></div>
+      <div class="form-group"><label>最近地铁</label><input type="text" id="editSubway" placeholder="如：2号线虹桥火车站"></div>
+      <div class="form-group"><label>距地铁</label><input type="text" id="editSubwayDist" placeholder="如：500米"></div>
+      <div class="form-group"><label>联系人</label><input type="text" id="editContact" placeholder="如：张先生 138xxxx"></div>
+      <div class="form-group"><label>运营方/公司</label><input type="text" id="editCompany" placeholder="如：XX公寓管理公司"></div>
+      <div class="form-group"><label>来源平台</label><select id="editPlatform"><option value="58同城">58同城</option><option value="安居客">安居客</option><option value="自如">自如</option><option value="Wellcee">Wellcee</option><option value="诸葛找房">诸葛找房</option><option value="闵行公租房平台">闵行公租房平台</option><option value="浦东公租房">浦东公租房</option><option value="临港保租房">临港保租房</option><option value="上海住房租赁平台">上海住房租赁平台</option><option value="其他">其他</option></select></div>
+      <div class="form-group"><label>链接URL</label><input type="text" id="editUrl" placeholder="https://..."></div>
+      <div class="form-group"><label>付款方式</label><input type="text" id="editPayment" placeholder="如：押一付一"></div>
+      <div class="form-group"><label>纬度 (lat)</label><input type="number" id="editLat" step="0.0001" placeholder="如：31.2000"></div>
+      <div class="form-group"><label>经度 (lng)</label><input type="number" id="editLng" step="0.0001" placeholder="如：121.3000"></div>
+      <div class="form-group" style="grid-column:span 2;"><label>配套设施（逗号分隔）</label><input type="text" id="editFacilities" placeholder="如：独立卫浴,空调,洗衣机"></div>
+      <div class="form-group" style="grid-column:span 3;"><label>亮点特色（逗号分隔）</label><input type="text" id="editFeatures" placeholder="如：近地铁,精装修,拎包入住"></div>
+      <div class="form-group" style="grid-column:span 3;"><label>备注</label><input type="text" id="editNotes" placeholder="如：距龙湖天街238米"></div>
     </div>
-    <div class="form-row">
-      <label>经度 (lng)</label>
-      <input type="number" id="editLng" step="0.0001" placeholder="如：121.3000">
-    </div>
-    <div class="form-row">
-      <label>地址（修改后可点击"地址定位"重新获取坐标）</label>
-      <input type="text" id="editAddress" placeholder="如：闵行区申虹路XXX弄">
-    </div>
-    <div class="form-row" style="display:flex;gap:8px;">
+    <div class="form-row" style="display:flex;gap:8px;margin-top:8px;">
       <button class="edit-btn" style="margin-right:0;" onclick="geocodeEditAddress()">地址定位</button>
       <span class="mini-map-hint" style="line-height:32px;">点击定位后自动填入坐标</span>
-    </div>
-    <div class="form-row">
-      <label>最近地铁站</label>
-      <input type="text" id="editSubway" placeholder="如：2号线虹桥火车站">
-    </div>
-    <div class="form-row">
-      <label>距地铁距离</label>
-      <input type="text" id="editSubwayDist" placeholder="如：500米">
-    </div>
-    <div class="form-row">
-      <label>联系人/运营方</label>
-      <input type="text" id="editContact" placeholder="如：张先生 138xxxx">
-    </div>
-    <div class="form-row">
-      <label>月租（元/月）</label>
-      <input type="text" id="editPrice" placeholder="如：2000 或 2000-3000">
     </div>
     <div class="btn-row">
       <button class="btn-reset" id="resetBtn" onclick="resetListingEdit()">重置原始值</button>
