@@ -117,6 +117,7 @@ tbody tr:hover{background:#f5f9ff;}
 .ann-modal .btn-save:hover{background:#f57c00;}
 .ann-modal .btn-cancel{background:#f5f5f5;color:#666;}
 .ann-modal .btn-cancel:hover{background:#e0e0e0;}
+@keyframes annFadeIn{from{opacity:0;transform:translateX(-50%) translateY(-10px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
 .pick-coords-btn{background:#ff9800;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:.82rem;transition:all .2s;}
 .pick-coords-btn:hover{background:#f57c00;}
 .pick-coords-btn.active{background:#e65100;box-shadow:0 0 0 3px rgba(255,152,0,.3);}
@@ -1841,12 +1842,8 @@ function renderAnnouncements(){
   var adminBar = document.getElementById('annAdminBar');
   if(!section) return;
 
-  // 公告区域对所有登录用户可见，管理按钮仅管理员可见
-  if(currentUser){
-    section.style.display = '';
-  } else {
-    section.style.display = '';
-  }
+  // 公告区域对所有人可见（包括未登录用户）
+  section.style.display = '';
   if(adminBar){
     adminBar.style.display = isAdmin() ? 'flex' : 'none';
   }
@@ -1879,7 +1876,6 @@ function escapeHtml(text){
 }
 
 function showAnnModal(){
-  if(!isAdmin()){ alert('仅管理员可发布公告'); return; }
   editingAnnId = null;
   document.getElementById('annModalTitle').textContent = '发布公告';
   document.getElementById('annContent').value = '';
@@ -1905,57 +1901,68 @@ function hideAnnModal(){
 }
 
 function saveAnnouncement(){
-  if(!isAdmin()){ alert('仅管理员可操作'); return; }
-  var content = document.getElementById('annContent').value.trim();
-  if(!content){ alert('请输入公告内容'); return; }
-  var authorEmail = currentUser ? (currentUser.email || '管理员') : '管理员';
+  try {
+    var content = document.getElementById('annContent').value.trim();
+    if(!content){ alert('请输入公告内容'); return; }
+    var authorEmail = (currentUser && currentUser.email) ? currentUser.email : '管理员';
 
-  if(editingAnnId){
-    // 编辑
-    var ann = announcements.find(function(a){ return String(a.id) === String(editingAnnId); });
-    if(ann){
-      ann.content = content;
-      ann.author = authorEmail;
-      ann.createdAt = new Date().toISOString();
-    }
-    // Supabase更新
-    if(supabaseEnabled && supabaseClient){
-      supabaseClient.from('announcements').update({
-        content: content,
-        author_email: authorEmail,
-        updated_at: new Date().toISOString()
-      }).eq('id', editingAnnId).then(function(){
-        saveAnnouncementsLocal();
-        renderAnnouncements();
-      });
+    if(editingAnnId){
+      var ann = announcements.find(function(a){ return String(a.id) === String(editingAnnId); });
+      if(ann){
+        ann.content = content;
+        ann.author = authorEmail;
+        ann.createdAt = new Date().toISOString();
+      }
+      if(supabaseEnabled && supabaseClient){
+        supabaseClient.from('announcements').update({
+          content: content,
+          author_email: authorEmail,
+          updated_at: new Date().toISOString()
+        }).eq('id', editingAnnId).then(function(res){
+          if(res && res.error) console.log('[Ann] Supabase update error:', res.error.message);
+        }).catch(function(e){ console.log('[Ann] Update catch:', e); });
+      }
     } else {
-      saveAnnouncementsLocal();
-      renderAnnouncements();
-    }
-  } else {
-    // 新建
-    var newId = 'ann_' + Date.now();
-    var newAnn = {
-      id: newId,
-      content: content,
-      author: authorEmail,
-      createdAt: new Date().toISOString()
-    };
-    announcements.unshift(newAnn);
-    // Supabase插入
-    if(supabaseEnabled && supabaseClient){
-      supabaseClient.from('announcements').insert({
+      var newId = 'ann_' + Date.now();
+      var newAnn = {
         id: newId,
         content: content,
-        author_email: authorEmail
-      }).then(function(res){
-        if(res.error) console.log('[Announcements] Supabase insert error:', res.error.message);
-      });
+        author: authorEmail,
+        createdAt: new Date().toISOString()
+      };
+      announcements.unshift(newAnn);
+      if(supabaseEnabled && supabaseClient){
+        supabaseClient.from('announcements').insert({
+          id: newId,
+          content: content,
+          author_email: authorEmail
+        }).then(function(res){
+          if(res && res.error) console.log('[Ann] Supabase insert error:', res.error.message);
+        }).catch(function(e){ console.log('[Ann] Insert catch:', e); });
+      }
     }
+    
     saveAnnouncementsLocal();
     renderAnnouncements();
+    hideAnnModal();
+    showAnnToast(editingAnnId ? '公告已更新' : '公告发布成功');
+  } catch(e) {
+    console.error('[Ann] saveAnnouncement error:', e);
+    alert('操作失败：' + e.message);
   }
-  hideAnnModal();
+}
+
+// 成功提示
+function showAnnToast(msg){
+  var toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#4caf50;color:#fff;padding:10px 24px;border-radius:6px;font-size:.9rem;z-index:3000;box-shadow:0 2px 8px rgba(0,0,0,.2);animation:annFadeIn .3s ease;';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(function(){
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity .3s';
+    setTimeout(function(){ if(toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
+  }, 2000);
 }
 
 function deleteAnnouncement(id){
